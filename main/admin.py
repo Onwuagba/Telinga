@@ -2,7 +2,7 @@
 import logging
 import secrets
 from django.contrib import admin
-from .models import APIKey
+from main.models import Customer, Feedback, APIKey
 
 logger = logging.getLogger("main")
 
@@ -25,3 +25,15 @@ class APIKeyAdmin(admin.ModelAdmin):
 
     def generate_key(self):
         return secrets.token_urlsafe(40)
+
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ("phone_number", "email", "first_name", "last_name")
+    search_fields = ("phone_number", "email", "first_name", "last_name")
+
+
+@admin.register(Feedback)
+class FeedbackAdmin(admin.ModelAdmin):
+    list_display = ("customer", "message", "sentiment", "created_at")
+    list_filter = ("sentiment",)
