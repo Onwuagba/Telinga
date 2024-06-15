@@ -34,14 +34,14 @@ class CustomAPIResponse:
         if not all([self.message, self.status_code, self.status]):
             raise ValidationError("message and status code cannot be empty")
 
-        data = {"status": self.status}
+        data = {"status": self.status, "data": "", "errors": []}
         if self.status == "failed":
             if isinstance(self.message, (ValidationError, ValueError)):
-                data["message"] = self.message.args[0]
+                data["errors"] = self.message.args[0]
             elif isinstance(self.message, dict):
-                data["message"] = self.convert_to_string(self.message)
+                data["errors"] = self.convert_to_string(self.message)
             else:
-                data["message"] = self.message
+                data["errors"] = self.message
         else:
             data["data"] = self.message
         status_code = self.status_code

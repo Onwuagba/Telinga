@@ -15,4 +15,4 @@ class APIKeyAuthentication(BaseAuthentication):
         except APIKey.DoesNotExist:
             raise AuthenticationFailed("Invalid API Key")
 
-        return (api_key.user, None)
+        return (api_key.business, None)

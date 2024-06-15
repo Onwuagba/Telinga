@@ -168,7 +168,7 @@ LOGGING = {
     "loggers": {
         "app": {
             "handlers": ["console", "error_file", "info_file"],
-            "level": "INFO",
+            "level": "DEBUG",
         },
         "app_debug": {
             "handlers": ["console", "file"],
