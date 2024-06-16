@@ -3,29 +3,21 @@ import io
 import logging
 import os
 import re
-from django.core.exceptions import ValidationError
-from django.shortcuts import render
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 from django.template.defaultfilters import escape
+from django.conf import settings
+from rest_framework.views import APIView
+from rest_framework import status
 from rest_framework.parsers import MultiPartParser, JSONParser
 from dotenv import load_dotenv
 
 from main.api_response import CustomAPIResponse
-from main.models import Customer, MessageFormat
+from main.models import MessageFormat
 from main.serializers import CustomerSerializer
 
 load_dotenv()
 
 logger = logging.getLogger("app")
-MAX_UPLOAD_FILE_SIZE = os.getenv(
-    "MAX_UPLOAD_FILE_SIZE", default=1048576
-)  # Default to 1 MB if not set
-CSV_REQUIRED_HEADERS = os.getenv(
-    "CSV_REQUIRED_HEADERS", default="phone_number,email,first_name,last_name"
-).split(",")
 
 
 # Create your views here.
@@ -98,9 +90,9 @@ class UploadCustomerView(APIView):
         """
         headers = [header.strip() for header in headers if header.strip()]
 
-        if headers != CSV_REQUIRED_HEADERS:
+        if headers != settings.CSV_REQUIRED_HEADERS:
             logger.error(
-                f"Invalid CSV headers: {headers}. Required: {CSV_REQUIRED_HEADERS}"
+                f"Invalid CSV headers: {headers}. Required: {settings.CSV_REQUIRED_HEADERS}"
             )
             return False
         return True
@@ -169,12 +161,12 @@ class UploadCustomerView(APIView):
             ).send()
 
         # Validate file size (limit to 5MB)
-        if csv_file.size > int(MAX_UPLOAD_FILE_SIZE):
+        if csv_file.size > int(settings.MAX_UPLOAD_FILE_SIZE):
             logger.error(
-                f"File size exceeds limit. CSV size: {csv_file.size} | Max file size: {MAX_UPLOAD_FILE_SIZE} bytes"
+                f"File size exceeds limit. CSV size: {csv_file.size} | Max file size: {settings.MAX_UPLOAD_FILE_SIZE} bytes"
             )
             return CustomAPIResponse(
-                f"File size exceeds the allowed limit of {MAX_UPLOAD_FILE_SIZE} bytes",
+                f"File size exceeds the allowed limit of {settings.MAX_UPLOAD_FILE_SIZE} bytes",
                 status.HTTP_400_BAD_REQUEST,
                 "failed",
             ).send()
@@ -190,7 +182,7 @@ class UploadCustomerView(APIView):
             # Validate headers
             if not self.validate_headers(headers):
                 return CustomAPIResponse(
-                    f"Invalid CSV headers. Required: {CSV_REQUIRED_HEADERS}",
+                    f"Invalid CSV headers. Required: {settings.CSV_REQUIRED_HEADERS}",
                     status.HTTP_400_BAD_REQUEST,
                     "failed",
                 ).send()
@@ -287,3 +279,6 @@ class UploadCustomerView(APIView):
                 status.HTTP_400_BAD_REQUEST,
                 "failed",
             ).send()
+
+
+

@@ -199,3 +199,24 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Email configuration
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+EMAIL_PORT = os.getenv("EMAIL_PORT")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS")
+EMAIL_SENDER = os.getenv("EMAIL_SENDER")
+
+# TWILIO CRED
+ACCOUNT_SID = os.getenv("TW_ACCOUNT_SID")
+AUTH_TOKEN = os.getenv("TW_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = os.getenv("TW_PHONE_NUMBER")
+
+MAX_UPLOAD_FILE_SIZE = os.getenv(
+    "MAX_UPLOAD_FILE_SIZE", default=1048576
+)  # Default to 1 MB if not set
+CSV_REQUIRED_HEADERS = os.getenv(
+    "CSV_REQUIRED_HEADERS", default="phone_number,email,first_name,last_name"
+).split(",")

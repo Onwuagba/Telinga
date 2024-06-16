@@ -6,9 +6,6 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator, MaxLengthValidator
 from django.utils.translation import gettext_lazy as _
 
-from main.utils import analyse_sentiment
-
-
 UserModel = get_user_model()
 # a typical user on the system is a business
 
@@ -99,7 +96,7 @@ class Feedback(models.Model):
     def __str__(self):
         return f"{self.customer.first_name} feedback"
 
-    def save(self, *args, **kwargs):
-        if self._state.adding and self.message:  # Only analyze sentiment on create
-            self.sentiment = analyse_sentiment(self.message)
-        super(Feedback, self).save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     if self._state.adding and self.message:  # Only analyze sentiment on create
+    #         self.sentiment = analyse_sentiment(self.message)
+    #     super(Feedback, self).save(*args, **kwargs)
