@@ -1,10 +1,74 @@
-import logging
+import logging, os
 from django.core.mail import send_mail
-from twilio.rest import Client
 from django.conf import settings
+from dotenv import load_dotenv
 
+import google.generativeai as genai
+from twilio.rest import Client
 
+from main.models import Feedback
+
+load_dotenv()
+
+genai.configure(api_key=os.getenv("TW_GEMINI_API_KEY"))
 logger = logging.getLogger("app")
+
+
+class GeminiManager:
+    def __init__(self) -> None:
+        self.model = genai.GenerativeModel("gemini-1.5-flash")
+
+    def _generate_response(self, prompt):
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e:
+            logger.error(f"Error generating response: {e}")
+            return "Error generating response"
+
+    def _email_subject(self, message):
+        """
+        Generates an email subject based on the provided message.
+
+        Args:
+            message: The message content for which the email subject is generated.
+
+        Returns:
+            The generated email subject as a string.
+        """
+        logger.info("Generating email subject...")
+        prompt = f"Suggest email subject with no extra text for: {message}. Do not add any extra text, simply return only the email title"
+        return self._generate_response(prompt)
+
+    def _sentiment_analysis(self, feedback):
+        """
+        Generate sentiment analysis for the given feedback.
+
+        Args:
+            feedback (str): The feedback sentence for which sentiment analysis needs to be generated.
+
+        Returns:
+            str: The sentiment analysis result, which can be either "positive", "negative", or "neutral".
+        """
+        logger.info("Generating sentiment analysis...")
+        prompt = f"Is this sentence positive or negative or neutral: '{feedback}'? Do not add any extra text, simply return the result"
+        result = self._generate_response(prompt).lower()
+
+        if "positive" in result:
+            return "positive"
+        elif "negative" in result:
+            return "negative"
+        elif "neutral" in result:
+            return "neutral"
+        else:
+            logger.error(f"Unexpected sentiment analysis result: {result}")
+            return "neutral"
+
+    def _summarise_feedback(self, feedback):
+        logger.info("Summarising feedback...")
+        prompt = f"Summarise this text: {feedback} in two sentences. Make it short and concise"
+        return self._generate_response(prompt)
+
 
 class CustomerNotificationManager:
     def __init__(self, account_sid, auth_token, twilio_phone_number, email_from):
@@ -12,14 +76,11 @@ class CustomerNotificationManager:
         self.auth_token = auth_token
         self.twilio_phone_number = twilio_phone_number
         self.email_from = email_from
+        self.gemini_manager = GeminiManager()  # Instantiate GeminiManager
 
     def generate_email_subject(self, message):
         """
         Generates an email subject based on the provided message.
-
-        This is a placeholder function. You can customize the logic to
-        extract keywords or phrases from the message and create a dynamic
-        subject line.
 
         Args:
             message: The message content used to generate the subject.
@@ -27,13 +88,8 @@ class CustomerNotificationManager:
         Returns:
             A string representing the generated email subject.
         """
-
-        # Placeholder implementation (customize as needed)
-        keywords = ["promotion", "discount", "update"]
-        if any(keyword in message.lower() for keyword in keywords):
-            return f"Important: {message[:30]}"  # Truncate to 30 chars
-        else:
-            return f"From Your Company: {message[:30]}"
+        # Use GeminiManager to generate the email subject
+        return self.gemini_manager._email_subject(message)
 
     def send_message(self, customer):
         logging.info(
@@ -85,14 +141,43 @@ class CustomerNotificationManager:
         for header in settings.CSV_REQUIRED_HEADERS:
             placeholder = f"{{{{ {header} }}}}"
             if placeholder in parsed_message:
-                value = getattr(customer, header)
+                value = getattr(customer, header, "")
                 parsed_message = parsed_message.replace(placeholder, value)
             else:
                 logging.error(
                     f"Placeholder {placeholder} not found in the message format"
                 )
-                # raise ValueError(
-                #     f"Placeholder {placeholder} not found in the message format"
-                # )
         return parsed_message
 
+    def respond_to_feedback(self, feedback: Feedback):
+        customer = feedback.customer
+        logging.info(f"Responding to user feedback from {customer.first_name}")
+        message = self.generate_response_message(feedback)
+        if feedback.source == "sms":
+            logging.info(f"Feedback from {feedback.customer.first_name} sent via SMS")
+            self.send_sms(customer.phone_number, message)
+        elif feedback.source == "email":
+            logging.info(f"Feedback from {feedback.customer.first_name} sent via email")
+            subject = self.generate_email_subject(message)
+            self.send_email(customer.email, subject, message)
+
+    def generate_response_message(self, feedback: Feedback):
+        if feedback.sentiment == "positive":
+            return "Thank you for your positive feedback! We appreciate your support."
+        elif feedback.sentiment == "neutral":
+            return "Thank you for your feedback. They are noted and will be taken into consideration"
+        elif feedback.sentiment == "negative":
+            return (
+                "We're sorry to hear about your experience. "
+                "Your issue has been escalated to a live agent and is receiving attention."
+            )
+
+    def escalate_to_agent(self, feedback: Feedback):
+        client = Client(self.account_sid, self.auth_token)
+        msg = self.gemini_manager._summarise_feedback(feedback.message)
+        call = client.calls.create(
+            twiml=f"<Response><Say>Customer {feedback.customer.first_name} left a negative review. \n**Summary: {msg}\n**Source: {feedback.source}\nPlease review and assist.</Say></Response>",
+            to="agent_phone_number",
+            from_=self.twilio_phone_number,
+        )
+        logger.info(f"Call initiated to live agent: {call.sid}")

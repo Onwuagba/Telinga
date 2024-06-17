@@ -5,16 +5,17 @@ import os
 import re
 
 from django.template.defaultfilters import escape
-from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from dotenv import load_dotenv
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, JSONParser
-from dotenv import load_dotenv
+from rest_framework.response import Response
 
 from main.api_response import CustomAPIResponse
-from main.models import MessageFormat
+from main.models import MessageFormat, Customer, Feedback
 from main.serializers import CustomerSerializer
-
 load_dotenv()
 
 logger = logging.getLogger("app")
@@ -281,4 +282,37 @@ class UploadCustomerView(APIView):
             ).send()
 
 
+@method_decorator(csrf_exempt, name="dispatch")
+class TwilioWebhookView(APIView):
+    http_method_names = ["post"]
 
+    def post(self, request):
+        from_number = request.POST.get("From")
+        body = request.POST.get("Body")
+        # to_number = request.POST.get("To")
+        email = request.POST.get("Email")
+
+        logger.info(f"Incoming feedback from {from_number or email}: {body}")
+
+        # Find the customer by phone number or email
+        customer = None
+        if from_number:
+            customer = Customer.objects.filter(phone_number=from_number).first()
+        elif email:
+            customer = Customer.objects.filter(email__iexact=email).first()
+
+        if not customer:
+            logger.error(f"No customer found for {from_number or email}")
+            return Response(
+                {"error": "Customer not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Save the feedback
+        feedback = Feedback(
+            customer=customer, message=body, source="sms" if from_number else "email"
+        )
+        feedback.save()
+
+        # post-save signal is triggered to analyse sentiment and  respond to feedback
+
+        return Response({"message": "Feedback processed"}, status=status.HTTP_200_OK)

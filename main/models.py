@@ -44,7 +44,7 @@ class Customer(models.Model):
         db_index=True,
     )
     email = models.EmailField(null=True, blank=True, db_index=True)
-    first_name = models.CharField(max_length=50, null=True, blank=True)
+    first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50, null=True, blank=True)
     message_format = models.ForeignKey(
         MessageFormat, on_delete=models.SET_NULL, null=True, blank=True
@@ -78,6 +78,15 @@ class Feedback(models.Model):
         Customer, on_delete=models.CASCADE, related_name="customer_feedback"
     )
     message = models.TextField(validators=[MaxLengthValidator(1000)])
+    source = sentiment = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        choices=[
+            ("sms", "sms"),
+            ("email", "email"),
+        ],
+    )
     sentiment = models.CharField(
         max_length=10,
         null=True,
@@ -95,8 +104,3 @@ class Feedback(models.Model):
 
     def __str__(self):
         return f"{self.customer.first_name} feedback"
-
-    # def save(self, *args, **kwargs):
-    #     if self._state.adding and self.message:  # Only analyze sentiment on create
-    #         self.sentiment = analyse_sentiment(self.message)
-    #     super(Feedback, self).save(*args, **kwargs)

@@ -1,9 +1,8 @@
 from django.conf import settings
-from main.manager import CustomerNotificationManager
+from main.manager import CustomerNotificationManager, GeminiManager
 
 
-def analyse_sentiment(message):
-    return "neutral"
+gemini_manager = GeminiManager
 
 
 message_manager = CustomerNotificationManager(
