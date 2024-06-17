@@ -30,6 +30,7 @@ class APIKeyAdmin(admin.ModelAdmin):
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     list_display = (
+        "id",
         "phone_number",
         "email",
         "first_name",

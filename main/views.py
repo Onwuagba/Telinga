@@ -7,6 +7,7 @@ import re
 from django.conf import settings
 from django.template.defaultfilters import escape
 from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from dotenv import load_dotenv
 from rest_framework.views import APIView
@@ -17,6 +18,8 @@ from rest_framework.response import Response
 from main.api_response import CustomAPIResponse
 from main.models import MessageFormat, Customer, Feedback
 from main.serializers import CustomerSerializer
+from main.tasks import schedule_message
+
 load_dotenv()
 
 logger = logging.getLogger("app")
@@ -126,6 +129,8 @@ class UploadCustomerView(APIView):
         )
         csv_file = request.FILES.get("csv_file")
         message_format = request.data.get("message")
+        delivery_time = request.data.get("delivery_time")
+        print(timezone.now())
 
         if not csv_file:
             return CustomAPIResponse(
@@ -174,6 +179,13 @@ class UploadCustomerView(APIView):
             ).send()
 
         try:
+            delivery_time = (
+                timezone.datetime.fromisoformat(delivery_time)
+                if delivery_time
+                else "now"
+            )  # default to now
+            print(delivery_time)
+
             # Read and process the file
             logger.debug(f"Reading CSV file {csv_file.name}")
             file_data = csv_file.read().decode("utf-8")
@@ -251,7 +263,17 @@ class UploadCustomerView(APIView):
                     continue
 
                 # Save valid data
-                serializer.save()
+                customer = serializer.save()
+
+                # Schedule or trigger message delivery
+                if delivery_time == "now":
+                    print("sending message to celery now")
+                    schedule_message.apply_async(args=[customer.id], countdown=0)
+                else:
+                    print(
+                        f"sending message to {customer.first_name} at {delivery_time}"
+                    )
+                    schedule_message.apply_async(args=[customer.id], eta=delivery_time)
 
             if errors:
                 return CustomAPIResponse(

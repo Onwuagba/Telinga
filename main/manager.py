@@ -93,14 +93,14 @@ class CustomerNotificationManager:
 
     def send_message(self, customer):
         logging.info(
-            f"Notification service called by {customer.first_name} for business `{customer.message_format.business.first_name}`"
+            f"Notification service called by {customer.first_name} for business `{customer.message_format.business.username}`"
         )
         if customer.phone_number:
             logging.info(
                 f"{customer.first_name} has a phone number {customer.phone_number}"
             )
             self.send_sms(
-                customer.phone_number,
+                f"+{customer.phone_number}",
                 self.parse_message(customer.message_format.message, customer),
             )
             logging.info(f"Notification to {customer.first_name} completed")
@@ -118,6 +118,7 @@ class CustomerNotificationManager:
 
     def send_sms(self, phone_number, message):
         logging.info(f"Sending SMS to phone number {phone_number}")
+        # exception is raised in celery allowing it to fail & retry when necessary
         client = Client(self.account_sid, self.auth_token)
         message = client.messages.create(
             body=message, from_=self.twilio_phone_number, to=phone_number
@@ -126,27 +127,28 @@ class CustomerNotificationManager:
 
     def send_email(self, email, subject, message):
         logging.info(f"Sending email to {email}")
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=self.email_from,
-            recipient_list=[email],
-            fail_silently=False,
-        )
-        logger.info(f"Email sent to {email}")
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=self.email_from,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            logger.info(f"Email sent to {email}")
+        except Exception as e:
+            logger.error(f"Error sending email to {email}: {e}")
 
     def parse_message(self, message_format, customer):
         logging.info(f"Parsing message for {customer.first_name}")
         parsed_message = message_format
         for header in settings.CSV_REQUIRED_HEADERS:
-            placeholder = f"{{{{ {header} }}}}"
+            placeholder = f"{{{{{header}}}}}".strip()
+
             if placeholder in parsed_message:
                 value = getattr(customer, header, "")
                 parsed_message = parsed_message.replace(placeholder, value)
-            else:
-                logging.error(
-                    f"Placeholder {placeholder} not found in the message format"
-                )
+
         return parsed_message
 
     def respond_to_feedback(self, feedback: Feedback):
