@@ -4,6 +4,7 @@ import logging
 import os
 import re
 
+from django.conf import settings
 from django.template.defaultfilters import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator

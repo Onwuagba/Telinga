@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "django_filters",
+    "django_celery_beat",
+    "django_celery_results",
     "main",
 ]
 
@@ -220,3 +222,11 @@ MAX_UPLOAD_FILE_SIZE = os.getenv(
 CSV_REQUIRED_HEADERS = os.getenv(
     "CSV_REQUIRED_HEADERS", default="phone_number,email,first_name,last_name"
 ).split(",")
+
+# CELERY
+CELERY_BROKER_URL = "redis://" + os.getenv("REDIS_HOST") + ":" + os.getenv("REDIS_PORT")
+# save Celery task results in Django's database
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_TIMEZONE = "Africa/Lagos"
+# schedule items in the Django admin.
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers.DatabaseScheduler"
