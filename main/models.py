@@ -104,3 +104,19 @@ class Feedback(models.Model):
 
     def __str__(self):
         return f"{self.customer.first_name} feedback"
+
+
+class MessageStatus(models.Model):
+    customer = models.OneToOneField(
+        Customer, on_delete=models.CASCADE, related_name="message_status"
+    )
+    message_sid = models.CharField(max_length=34, unique=True)  # Twilio message SID
+    status = models.CharField(max_length=20)  # Delivery status
+    date_created = models.DateTimeField(auto_now_add=True)
+    date_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Message status"
+
+    def __str__(self):
+        return f"{self.status}"

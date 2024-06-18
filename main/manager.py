@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from twilio.rest import Client
 
-from main.models import Feedback
+from main.models import Feedback, MessageStatus
 
 load_dotenv()
 
@@ -99,11 +99,16 @@ class CustomerNotificationManager:
             logging.info(
                 f"{customer.first_name} has a phone number {customer.phone_number}"
             )
-            self.send_sms(
+            message_sid = self.send_sms(
                 f"+{customer.phone_number}",
                 self.parse_message(customer.message_format.message, customer),
             )
             logging.info(f"Notification to {customer.first_name} completed")
+
+            # Save message status
+            MessageStatus.objects.create(
+                customer=customer, message_sid=message_sid, status="queued"
+            )
         elif customer.email:
             logging.info(f"{customer.first_name} has email address {customer.email}")
             subject = self.generate_email_subject(customer.message_format.message)
@@ -124,6 +129,8 @@ class CustomerNotificationManager:
             body=message, from_=self.twilio_phone_number, to=phone_number
         )
         logger.info(f"SMS sent to {phone_number}: {message.sid}")
+
+        return message.sid
 
     def send_email(self, email, subject, message):
         logging.info(f"Sending email to {email}")

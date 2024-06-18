@@ -2,7 +2,7 @@
 import logging
 import secrets
 from django.contrib import admin
-from main.models import Customer, Feedback, APIKey, MessageFormat
+from main.models import Customer, Feedback, APIKey, MessageFormat, MessageStatus
 
 logger = logging.getLogger("app")
 
@@ -36,6 +36,7 @@ class CustomerAdmin(admin.ModelAdmin):
         "first_name",
         "last_name",
         "message_format",
+        "delivery_status",
         "date_uploaded",
     )
     search_fields = (
@@ -45,7 +46,10 @@ class CustomerAdmin(admin.ModelAdmin):
         "last_name",
         "message_format__business__username",
     )
-    list_filter = ("message_format__business__username",)
+    list_filter = ("message_format__business__username", "message_status__status")
+
+    def delivery_status(self, obj):
+        return obj.message_status.status if hasattr(obj, "message_status") else None
 
 
 @admin.register(Feedback)
@@ -60,3 +64,14 @@ class FeedbackAdmin(admin.ModelAdmin):
 class MessageFormatAdmin(admin.ModelAdmin):
     list_display = ("message", "business", "created_at")
     search_fields = ("message", "business__username")
+
+
+@admin.register(MessageStatus)
+class MessageStatusAdmin(admin.ModelAdmin):
+    list_display = ("customer", "message_sid", "status", "date_created", "date_updated")
+    list_filter = ("status", "date_created", "date_updated")
+    search_fields = (
+        "customer__email",
+        "customer__first_name",
+        "customer__phone_number",
+    )

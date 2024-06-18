@@ -1,6 +1,7 @@
 import datetime
 import os
 from pathlib import Path
+from celery.schedules import crontab
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -230,3 +231,9 @@ CELERY_RESULT_BACKEND = "django-db"
 CELERY_TIMEZONE = "Africa/Lagos"
 # schedule items in the Django admin.
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers.DatabaseScheduler"
+CELERY_BEAT_SCHEDULE = {
+    "check-message-status-every-5-minutes": {
+        "task": "main.tasks.check_message_delivery_status",
+        "schedule": crontab(minute="*/5"),
+    },
+}
