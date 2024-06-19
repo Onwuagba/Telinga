@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.response import Response
+from twilio.request_validator import RequestValidator
 
 from main.api_response import CustomAPIResponse
 from main.models import MessageFormat, Customer, Feedback
@@ -310,12 +311,25 @@ class TwilioWebhookView(APIView):
     http_method_names = ["post"]
 
     def post(self, request):
+        # Validate incoming Twilio request
+        validator = RequestValidator(settings.AUTH_TOKEN)
+        signature = request.META.get("HTTP_X_TWILIO_SIGNATURE", "")
+
+        url = request.build_absolute_uri()
+        post_vars = request.POST.dict()
+
+        if not validator.validate(url, post_vars, signature):
+            logger.error("Invalid Twilio request")
+            return Response(
+                {"error": "Invalid request"}, status=status.HTTP_403_FORBIDDEN
+            )
+
         from_number = request.POST.get("From")
         body = request.POST.get("Body")
         # to_number = request.POST.get("To")
         email = request.POST.get("Email")
 
-        logger.info(f"Incoming feedback from {from_number or email}: {body}")
+        logger.info(f"Incoming webhook feedback from {from_number or email}: {body}")
 
         # Find the customer by phone number or email
         customer = None
