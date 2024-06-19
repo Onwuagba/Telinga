@@ -237,3 +237,9 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*/5"),
     },
 }
+
+STATIC_URL = "static/"
+STATICFILES_DIRS = [
+    BASE_DIR / "templates/",
+]
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles/")
