@@ -18,3 +18,4 @@ media/
 .TODO-monolith
 article
 . 
+celery.sqlite

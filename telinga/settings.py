@@ -248,7 +248,8 @@ CSV_REQUIRED_HEADERS = os.getenv(
 ).split(",")
 
 # CELERY
-CELERY_BROKER_URL = "redis://" + os.getenv("REDIS_HOST") + ":" + os.getenv("REDIS_PORT")
+# CELERY_BROKER_URL = "redis://" + os.getenv("REDIS_HOST") + ":" + os.getenv("REDIS_PORT")
+CELERY_BROKER_URL = "sqla+sqlite:///celery.sqlite"
 # save Celery task results in Django's database
 CELERY_RESULT_BACKEND = "django-db"
 CELERY_TIMEZONE = "Africa/Lagos"
