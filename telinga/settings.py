@@ -240,6 +240,10 @@ ACCOUNT_SID = os.getenv("TW_ACCOUNT_SID")
 AUTH_TOKEN = os.getenv("TW_AUTH_TOKEN")
 TWILIO_PHONE_NUMBER = os.getenv("TW_PHONE_NUMBER")
 
+# SENDGRID CRED
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+
+
 MAX_UPLOAD_FILE_SIZE = os.getenv(
     "MAX_UPLOAD_FILE_SIZE", default=1048576
 )  # Default to 1 MB if not set

@@ -2,6 +2,8 @@ import logging, os
 from django.core.mail import send_mail
 from django.conf import settings
 from dotenv import load_dotenv
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 import google.generativeai as genai
 from twilio.rest import Client
@@ -135,13 +137,16 @@ class CustomerNotificationManager:
     def send_email(self, email, subject, message):
         logging.info(f"Sending email to {email}")
         try:
-            send_mail(
-                subject=subject,
-                message=message,
+            message = Mail(
                 from_email=self.email_from,
-                recipient_list=[email],
-                fail_silently=False,
+                to_emails=email,
+                subject=subject,
+                plain_text_content=message,
             )
+
+            sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
+            sg.send(message)
+
             logger.info(f"Email sent to {email}")
         except Exception as e:
             logger.error(f"Error sending email to {email}: {e}")
