@@ -136,20 +136,17 @@ class CustomerNotificationManager:
 
     def send_email(self, email, subject, message):
         logging.info(f"Sending email to {email}")
-        try:
-            message = Mail(
-                from_email=self.email_from,
-                to_emails=email,
-                subject=subject,
-                plain_text_content=message,
-            )
+        message = Mail(
+            from_email=self.email_from,
+            to_emails=email,
+            subject=subject,
+            plain_text_content=message,
+        )
 
-            sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
-            sg.send(message)
+        sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
+        sg.send(message)
 
-            logger.info(f"Email sent to {email}")
-        except Exception as e:
-            logger.error(f"Error sending email to {email}: {e}")
+        logger.info(f"Email sent to {email}")
 
     def parse_message(self, message_format, customer):
         logging.info(f"Parsing message for {customer.first_name}")

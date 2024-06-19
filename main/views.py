@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, JSONParser
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from twilio.request_validator import RequestValidator
 
@@ -308,9 +309,11 @@ class UploadCustomerView(APIView):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class TwilioWebhookView(APIView):
+    permission_classes = (AllowAny,)
     http_method_names = ["post"]
 
     def post(self, request):
+        logger.info(f"Incoming webhook feedback from {from_number or email}: {body}")
         # Validate incoming Twilio request
         validator = RequestValidator(settings.AUTH_TOKEN)
         signature = request.META.get("HTTP_X_TWILIO_SIGNATURE", "")
@@ -318,7 +321,13 @@ class TwilioWebhookView(APIView):
         url = request.build_absolute_uri()
         post_vars = request.POST.dict()
 
-        if not validator.validate(url, post_vars, signature):
+        validate_request = validator.validate(url, post_vars, signature)
+        print("Twilio validation returned ", validate_request)
+
+        if not validator.validate(url, post_vars, signature) and not settings.DEBUG:
+            logger.info(
+                f"validation failed for incoming webhook from {from_number or email}: {body}"
+            )
             logger.error("Invalid Twilio request")
             return Response(
                 {"error": "Invalid request"}, status=status.HTTP_403_FORBIDDEN
@@ -329,11 +338,11 @@ class TwilioWebhookView(APIView):
         # to_number = request.POST.get("To")
         email = request.POST.get("Email")
 
-        logger.info(f"Incoming webhook feedback from {from_number or email}: {body}")
-
         # Find the customer by phone number or email
         customer = None
         if from_number:
+            if "+" not in from_number:
+                from_number = "+{}".format(from_number)
             customer = Customer.objects.filter(phone_number=from_number).first()
         elif email:
             customer = Customer.objects.filter(email__iexact=email).first()
