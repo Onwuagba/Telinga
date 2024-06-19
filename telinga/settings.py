@@ -129,9 +129,10 @@ REST_FRAMEWORK = {
     },
 }
 
-LOG_DIR = os.path.join(BASE_DIR, "logs")
-if not os.path.exists(LOG_DIR):
-    os.mkdir(LOG_DIR)
+# Ensure logs directory exists
+LOG_DIR = BASE_DIR / "logs"
+if not LOG_DIR.exists():
+    LOG_DIR.mkdir(parents=True)
 
 LOGGING = {
     "version": 1,
@@ -153,13 +154,13 @@ LOGGING = {
         },
         "file": {
             "class": "logging.FileHandler",
-            "filename": "logs/debug.log",
+            "filename": str(LOG_DIR / "debug.log"),  # Absolute path to debug log
             "formatter": "verbose",
             "level": "DEBUG",
         },
         "error_file": {
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": f"logs/app-{datetime.datetime.now():%Y-%m-%d}-error.log",
+            "filename": LOG_DIR / "app-error.log",  # Absolute path to error log
             "when": "midnight",
             "backupCount": 10,
             "formatter": "verbose",
@@ -167,7 +168,7 @@ LOGGING = {
         },
         "info_file": {
             "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": f"logs/app-{datetime.datetime.now():%Y-%m-%d}-info.log",
+            "filename": LOG_DIR / "app-info.log",  # Absolute path to info log
             "when": "midnight",
             "backupCount": 10,
             "formatter": "verbose",
@@ -185,7 +186,6 @@ LOGGING = {
         },
     },
 }
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
