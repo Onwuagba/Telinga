@@ -313,7 +313,6 @@ class TwilioWebhookView(APIView):
     http_method_names = ["post"]
 
     def post(self, request):
-        logger.info(f"Incoming webhook feedback from {from_number or email}: {body}")
         # Validate incoming Twilio request
         validator = RequestValidator(settings.AUTH_TOKEN)
         signature = request.META.get("HTTP_X_TWILIO_SIGNATURE", "")
@@ -338,6 +337,8 @@ class TwilioWebhookView(APIView):
         # to_number = request.POST.get("To")
         email = request.POST.get("Email")
 
+        logger.info(f"Incoming webhook feedback from {from_number or email}: {body}")
+        
         # Find the customer by phone number or email
         customer = None
         if from_number:
