@@ -338,12 +338,12 @@ class TwilioWebhookView(APIView):
         email = request.POST.get("Email")
 
         logger.info(f"Incoming webhook feedback from {from_number or email}: {body}")
-        
+
         # Find the customer by phone number or email
         customer = None
         if from_number:
-            if "+" not in from_number:
-                from_number = "+{}".format(from_number)
+            if "+" in from_number:
+                from_number = str(from_number).replace("+", "")
             customer = Customer.objects.filter(phone_number=from_number).first()
         elif email:
             customer = Customer.objects.filter(email__iexact=email).first()
