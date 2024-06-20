@@ -13,9 +13,16 @@ def analyse_feedback_sentiment(sender, instance, created, **kwargs):
     logger.info("Signal Trigger: feedback sentiment analysis")
     if created and instance.message:
         sentiment = gemini_manager._sentiment_analysis(instance.message)
-        Feedback.objects.filter(pk=instance.pk).update(
-            sentiment=sentiment
-        )  # instance.save calls the signal twice
+
+        # Temporarily disconnect the signal so save does not call it twice
+        post_save.disconnect(analyse_feedback_sentiment, sender=Feedback)
+
+        instance.sentiment = sentiment
+        instance.save()
+
+        # Reconnect the signal
+        post_save.connect(analyse_feedback_sentiment, sender=Feedback)
+
         logger.info("Signal Trigger: Sentiment analysed")
 
         # Handle feedback response based on sentiment

@@ -2,7 +2,7 @@ from django.conf import settings
 from main.manager import CustomerNotificationManager, GeminiManager
 
 
-gemini_manager = GeminiManager
+gemini_manager = GeminiManager()
 
 
 message_manager = CustomerNotificationManager(
