@@ -20,13 +20,17 @@ class GeminiManager:
     def __init__(self) -> None:
         self.model = genai.GenerativeModel("gemini-1.5-flash")
 
-    def _generate_response(self, prompt):
+    def _generate_response(self, prompt, message=None):
         try:
             response = self.model.generate_content(prompt)
-            return response.text.strip()
+            if response.parts:
+                return response.parts[0].text.strip()
+            else:
+                logger.error(f"No valid parts in the response. {response}")
+                return message or "This is a generic response"
         except Exception as e:
             logger.error(f"Error generating response: {e}")
-            return "Error generating response"
+            return message or "This is a generic response"
 
     def _email_subject(self, message):
         """
@@ -40,7 +44,7 @@ class GeminiManager:
         """
         logger.info("Generating email subject...")
         prompt = f"Suggest email subject with no extra text for: {message}. Do not add any extra text, simply return only the email title"
-        return self._generate_response(prompt)
+        return self._generate_response(prompt, message[:20])
 
     def _sentiment_analysis(self, feedback):
         """
@@ -69,7 +73,22 @@ class GeminiManager:
     def _summarise_feedback(self, feedback):
         logger.info("Summarising feedback...")
         prompt = f"Summarise this text: {feedback} in two sentences. Make it short and concise"
-        return self._generate_response(prompt)
+        return self._generate_response(prompt, feedback[:20])
+
+    def detect_language(self, text):
+        logger.info("Detecting language...")
+        prompt = f"Detect the language of this text: '{text}'. Return only the language"
+        detected_language = self._generate_response(prompt)
+        return detected_language.strip().lower()
+
+    def translate_text(self, text, target_language="en"):
+        detected_language = self.detect_language(text)
+        logger.info(
+            f"Translating text from {detected_language} to {target_language}..."
+        )
+        prompt = f"Translate this text to {target_language}: '{text}'"
+        translated_text = self._generate_response(prompt, text[:20])
+        return translated_text
 
 
 class CustomerNotificationManager:
@@ -164,31 +183,43 @@ class CustomerNotificationManager:
         customer = feedback.customer
         logging.info(f"Responding to user feedback from {customer.first_name}")
         message = self.generate_response_message(feedback)
-        if feedback.source == "sms":
-            logging.info(f"Feedback from {feedback.customer.first_name} sent via SMS")
-            self.send_sms(customer.phone_number, message)
-        elif feedback.source == "email":
-            logging.info(f"Feedback from {feedback.customer.first_name} sent via email")
-            subject = self.generate_email_subject(message)
-            self.send_email(customer.email, subject, message)
+        try:
+            if feedback.source == "sms":
+                logging.info(
+                    f"Feedback from {feedback.customer.first_name} sent via SMS"
+                )
+                self.send_sms(customer.phone_number, message)
+            elif feedback.source == "email":
+                logging.info(
+                    f"Feedback from {feedback.customer.first_name} sent via email"
+                )
+                subject = self.generate_email_subject(message)
+                self.send_email(customer.email, subject, message)
+        except Exception as e:
+            logging.error(f"Error sending response to customer: {e}")
 
     def generate_response_message(self, feedback: Feedback):
+        feedback_language = self.gemini_manager.detect_language(feedback.message)
+
         if feedback.sentiment == "positive":
-            return "Thank you for your positive feedback! We appreciate your support."
-        elif feedback.sentiment == "neutral":
-            return "Thank you for your feedback. They are noted and will be taken into consideration"
-        elif feedback.sentiment == "negative":
-            return (
-                "We're sorry to hear about your experience. "
-                "Your issue has been escalated to a live agent and is receiving attention."
+            response = (
+                "Thank you for your positive feedback! We appreciate your support."
             )
+        elif feedback.sentiment == "neutral":
+            response = "Thank you for your feedback. They are noted and will be taken into consideration"
+        elif feedback.sentiment == "negative":
+            response = "We're sorry about your experience. A live agent is addressing the issue."
+
+        if feedback_language != "english":
+            response = self.gemini_manager.translate_text(response, feedback_language)
+        return f"{response}\nYour feedback: {feedback.message}"
 
     def escalate_to_agent(self, feedback: Feedback):
         client = Client(self.account_sid, self.auth_token)
         msg = self.gemini_manager._summarise_feedback(feedback.message)
         call = client.calls.create(
-            twiml=f"<Response><Say>Customer {feedback.customer.first_name} left a negative review. \n**Summary: {msg}\n**Source: {feedback.source}\nPlease review and assist.</Say></Response>",
-            to="agent_phone_number",
+            twiml=f"<Response><Say>Customer {feedback.customer.first_name} left a negative review. Here's the summary: {msg}.Please review and assist.</Say></Response>",
+            to=os.getenv("TEST_CALL_NUMBER"), # this should be customer number but currently testing with hardcoded number
             from_=self.twilio_phone_number,
         )
         logger.info(f"Call initiated to live agent: {call.sid}")
