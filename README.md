@@ -11,7 +11,9 @@ An interactive customer support API built with Django, Twilio, and Gemini AI for
 - [Admin Interface](#admin-interface)
 - [Usage](#usage)
   - [Endpoints](#endpoints)
-  - [Celery Tasks](#celery-tasks)
+    - [Authentication](#authentication)
+    - [Customer Feedback and Notifications](#customer-feedback-and-notifications)
+    - [Celery Tasks](#celery-tasks)
 - [Run Postman Collection](#run-collection)
 
 ## Overview
@@ -100,26 +102,59 @@ Access the Django admin interface to manage customers and feedback.
 
 ## Usage
 ### Endpoints
-1. **Twilio Webhook**
-Handle incoming feedback via Twilio SMS or email.
+#### Authentication
 
+1. **Register User**
+Register a new business.
 ```
-URL: /twilio/webhook/
+URL: /api/register/
 Method: POST
 
 Parameters:
-From: Sender's phone number
-Body: Message content
-Email: Sender's email (optional)
-```
-Example:
-```sh
-curl -X POST https://127.0.0.1:8000/twilio/webhook/ \
-    -d "From=+1234567890" \
-    -d "Body=Your feedback message here"
+username: User's username
+email: User's email (optional)
+password: User's password
 ```
 
-2. **Customer Upload**
+2. **Get API Key**
+Retrieve the API key for the authenticated user.
+
+```
+URL: /api/get_api_key/
+Method: GET
+
+Parameters:
+username: User's username
+password: User's password
+```
+
+3. **Change API Key**
+Generate and update the API key for the authenticated user.
+
+```
+URL: /api/change_api_key/
+Method: PUT
+
+Headers:
+Authorization: Token <your_token>
+```
+
+4. **Update Password**
+Update the password for the authenticated user.
+
+```
+URL: /api/update-password/
+Method: PUT
+
+Headers:
+Authorization: Token <your_token>
+
+Parameters:
+old_password: User's current password
+new_password: User's new password
+```
+
+5. **Customer Upload**
 Upload a CSV file with customer data and schedule messages.
 
 ```
@@ -140,6 +175,27 @@ curl -X POST https://127.0.0.1:8000/upload-csv/ \
     
     # Allowed placeholders: phone_number,email,first_name,last_name
 ```
+
+6. **Twilio Webhook**
+Handle incoming feedback via Twilio SMS or email.
+
+```
+URL: /twilio/webhook/
+Method: POST
+
+Parameters:
+From: Sender's phone number
+Body: Message content
+Email: Sender's email (optional)
+```
+Example:
+```sh
+curl -X POST https://127.0.0.1:8000/twilio/webhook/ \
+    -d "From=+1234567890" \
+    -d "Body=Your feedback message here"
+```
+
+
 
 ### Celery Tasks
 1. Schedule Message
