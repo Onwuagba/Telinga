@@ -12,6 +12,7 @@ An interactive customer support API built with Django, Twilio, and Gemini AI for
 - [Usage](#usage)
   - [Endpoints](#endpoints)
   - [Celery Tasks](#celery-tasks)
+- [Run Postman Collection](#run-collection)
 
 ## Overview
 
@@ -150,3 +151,7 @@ curl -X POST https://127.0.0.1:8000/upload-csv/ \
 
 ### Logging
 Logs are configured to output to both console and file. You can configure this in the settings file
+
+## run-collection
+
+[<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://app.getpostman.com/run-collection/7261954-9ca33fb4-8228-4520-a351-322910e08f28?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D7261954-9ca33fb4-8228-4520-a351-322910e08f28%26entityType%3Dcollection%26workspaceId%3D21eb856b-3287-46ec-951c-824c21f61034)

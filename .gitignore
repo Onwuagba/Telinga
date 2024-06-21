@@ -19,3 +19,4 @@ media/
 article
 . 
 celery.sqlite
+article.md
