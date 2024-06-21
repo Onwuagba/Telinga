@@ -11,11 +11,14 @@ UserModel = get_user_model()
 
 
 class APIKey(models.Model):
-    key = models.CharField(max_length=40, unique=True, default=secrets.token_urlsafe)
+    key = models.CharField(
+        max_length=40, unique=True, default=secrets.token_urlsafe(40)
+    )
     business = models.OneToOneField(
         UserModel, on_delete=models.CASCADE, related_name="business_key"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.key

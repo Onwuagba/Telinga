@@ -3,6 +3,7 @@ import io
 import logging
 import os
 import re
+import secrets
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, authenticate
@@ -97,6 +98,26 @@ class APIKeyView(RetrieveAPIView):
 
         response = CustomAPIResponse(message, status_code, code_status)
         return response.send()
+
+
+class ChangeAPIKeyView(APIView):
+    http_method_names = ["put"]
+
+    def put(self, request, *args, **kwargs):
+        user = request.user
+
+        new_api_key = secrets.token_urlsafe(40)
+
+        try:
+            business_key = user.business_key
+        except APIKey.DoesNotExist:
+            # Handle case where related APIKey does not exist
+            business_key = APIKey.objects.create(user=user, key=new_api_key)
+
+        business_key.key = new_api_key
+        business_key.save()
+
+        return Response({"api_key": new_api_key}, status=status.HTTP_200_OK)
 
 
 class UpdatePasswordView(APIView):

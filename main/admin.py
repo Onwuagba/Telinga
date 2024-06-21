@@ -9,7 +9,7 @@ logger = logging.getLogger("app")
 
 @admin.register(APIKey)
 class APIKeyAdmin(admin.ModelAdmin):
-    list_display = ("business", "key", "created_at")
+    list_display = ("business", "key", "created_at", "updated_at")
     readonly_fields = ("key", "created_at")
 
     def save_model(self, request, obj, form, change):
