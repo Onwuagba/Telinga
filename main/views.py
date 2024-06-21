@@ -7,6 +7,7 @@ import secrets
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, authenticate
+from django.db import IntegrityError
 from django.template.defaultfilters import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
@@ -90,11 +91,22 @@ class APIKeyView(RetrieveAPIView):
         user = authenticate(username=username, password=password)
 
         if user is not None:
-            api_key, _ = APIKey.objects.get_or_create(business=user)
-            serializer = APIKeySerializer(api_key)
-            message = serializer.data
-            status_code = status.HTTP_200_OK
-            code_status = "success"
+            # Attempt to get an existing APIKey or create a new one with a unique key
+            while True:
+                try:
+                    api_key, created = APIKey.objects.get_or_create(business=user)
+                    if created:
+                        api_key.key = secrets.token_urlsafe(40)
+                        api_key.save()
+                    serializer = APIKeySerializer(api_key)
+                    message = serializer.data
+                    status_code = status.HTTP_200_OK
+                    code_status = "success"
+                    break  # Exit the loop if successful
+                except IntegrityError:
+                    logger.error("Integrity error while trying to create api key")
+                    # Handle the case where the generated key already exists
+                    continue
 
         response = CustomAPIResponse(message, status_code, code_status)
         return response.send()
