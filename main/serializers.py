@@ -40,6 +40,22 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 
+class UpdatePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+    def validate_current_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+
+    def update(self, instance, validated_data):
+        instance.set_password(validated_data["new_password"])
+        instance.save()
+        return instance
+
+
 class APIKeySerializer(serializers.ModelSerializer):
     business_name = serializers.CharField(source="business.username", read_only=True)
 

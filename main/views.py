@@ -17,11 +17,17 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from twilio.request_validator import RequestValidator
 
 from main.api_response import CustomAPIResponse
 from main.models import APIKey, MessageFormat, Customer, Feedback
-from main.serializers import APIKeySerializer, CustomerSerializer, UserSerializer
+from main.serializers import (
+    APIKeySerializer,
+    CustomerSerializer,
+    UpdatePasswordSerializer,
+    UserSerializer,
+)
 from main.tasks import schedule_message
 
 load_dotenv()
@@ -91,6 +97,38 @@ class APIKeyView(RetrieveAPIView):
 
         response = CustomAPIResponse(message, status_code, code_status)
         return response.send()
+
+
+class UpdatePasswordView(APIView):
+    serializer_class = UpdatePasswordSerializer
+    http_method_names = ["put"]
+
+    def put(self, request, *args, **kwargs):
+        serializer = self.serializer_class(
+            data=request.data, context={"request": request}
+        )
+        try:
+            serializer.is_valid(raise_exception=True)
+            serializer.update(request.user, serializer.validated_data)
+            message = "Password updated successfully."
+            status_code = status.HTTP_200_OK
+            code_status = "success"
+        except ValidationError as e:
+            message = e.detail
+            status_code = status.HTTP_400_BAD_REQUEST
+            code_status = "failed"
+        except Exception as e:
+            logger.error(f"Exception in updating password: {e}")
+            message = "Failed to update password."
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            code_status = "failed"
+
+        response_data = {
+            "message": message,
+            "status_code": status_code,
+            "code_status": code_status,
+        }
+        return Response(response_data, status=status_code)
 
 
 class UploadCustomerView(APIView):
