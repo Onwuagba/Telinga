@@ -5,12 +5,14 @@ import os
 import re
 
 from django.conf import settings
+from django.contrib.auth import get_user_model, authenticate
 from django.template.defaultfilters import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from dotenv import load_dotenv
 from rest_framework.views import APIView
+from rest_framework.generics import CreateAPIView, RetrieveAPIView
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.permissions import AllowAny
@@ -18,13 +20,14 @@ from rest_framework.response import Response
 from twilio.request_validator import RequestValidator
 
 from main.api_response import CustomAPIResponse
-from main.models import MessageFormat, Customer, Feedback
-from main.serializers import CustomerSerializer
+from main.models import APIKey, MessageFormat, Customer, Feedback
+from main.serializers import APIKeySerializer, CustomerSerializer, UserSerializer
 from main.tasks import schedule_message
 
 load_dotenv()
 
 logger = logging.getLogger("app")
+User = get_user_model()
 
 
 # Create your views here.
@@ -36,6 +39,58 @@ class Home(APIView):
         status_msg = "success"
 
         return CustomAPIResponse(message, status_code, status_msg).send()
+
+
+class UserRegistrationView(CreateAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = UserSerializer
+    http_method_names = ["post"]
+
+    def post(self, request):
+        serializer = self.serializer_class(
+            data=request.data, context={"request": request}
+        )
+        try:
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            message = "Registration successful."
+            status_code = status.HTTP_201_CREATED
+            code_status = "success"
+        except Exception as e:
+            logger.error(
+                f"Exception in registration. Email {request.data.get('email')}: {e}"
+            )
+            message = e.args[0]
+            status_code = status.HTTP_400_BAD_REQUEST
+            code_status = "failed"
+
+        response = CustomAPIResponse(message, status_code, code_status)
+        return response.send()
+
+
+class APIKeyView(RetrieveAPIView):
+    serializer_class = APIKeySerializer
+    permission_classes = (AllowAny,)
+    http_method_names = ["post"]
+
+    def post(self, request):
+        message = "Invalid credentials"
+        status_code = status.HTTP_400_BAD_REQUEST
+        code_status = "failed"
+
+        username = request.data.get("username")
+        password = request.data.get("password")
+        user = authenticate(username=username, password=password)
+
+        if user is not None:
+            api_key, _ = APIKey.objects.get_or_create(business=user)
+            serializer = APIKeySerializer(api_key)
+            message = serializer.data
+            status_code = status.HTTP_200_OK
+            code_status = "success"
+
+        response = CustomAPIResponse(message, status_code, code_status)
+        return response.send()
 
 
 class UploadCustomerView(APIView):
