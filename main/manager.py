@@ -79,7 +79,7 @@ class GeminiManager:
         logger.info("Detecting language...")
         prompt = f"Detect the language of this text: '{text}'. Return only the language"
         detected_language = self._generate_response(prompt)
-        logger.info('detected_language: "%s"', detected_language)
+        logger.info(f"detected_language: {detected_language}")
         return detected_language.strip().lower()
 
     def translate_text(self, text, target_language="en"):
@@ -147,6 +147,8 @@ class CustomerNotificationManager:
         logging.info(f"Sending SMS to phone number {phone_number}")
         # exception is raised in celery allowing it to fail & retry when necessary
         client = Client(self.account_sid, self.auth_token)
+        if "+" not in phone_number:
+            phone_number = f"+{phone_number}"
         message = client.messages.create(
             body=message, from_=self.twilio_phone_number, to=phone_number
         )
@@ -201,7 +203,8 @@ class CustomerNotificationManager:
 
     def generate_response_message(self, feedback: Feedback):
         feedback_language = self.gemini_manager.detect_language(feedback.message)
-        logger.info("Sentiment is {}", feedback.sentiment)
+        print(f"Print: Sentiment is {feedback.sentiment}")
+        logger.info(f"Sentiment is {feedback.sentiment}")
 
         if feedback.sentiment == "positive":
             response = (
