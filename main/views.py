@@ -453,7 +453,6 @@ class TwilioWebhookView(APIView):
             logger.info(
                 f"validation failed for incoming webhook from {from_number or email}: {body}"
             )
-            logger.error("Invalid Twilio request")
             return Response(
                 {"error": "Invalid request"}, status=status.HTTP_403_FORBIDDEN
             )

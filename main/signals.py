@@ -13,7 +13,7 @@ logger = logging.getLogger("app")
 
 @receiver(post_save, sender=Feedback)
 def analyse_feedback_sentiment(sender, instance, created, **kwargs):
-    logger.info("Signal Trigger: feedback sentiment analysis")
+    logger.info("Signal Trigger: starting feedback sentiment analysis. ..")
     if created and instance.message:
         sentiment = gemini_manager._sentiment_analysis(instance.message)
         Feedback.objects.filter(pk=instance.pk).update(

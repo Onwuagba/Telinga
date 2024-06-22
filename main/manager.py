@@ -79,6 +79,7 @@ class GeminiManager:
         logger.info("Detecting language...")
         prompt = f"Detect the language of this text: '{text}'. Return only the language"
         detected_language = self._generate_response(prompt)
+        logger.info('detected_language: "%s"', detected_language)
         return detected_language.strip().lower()
 
     def translate_text(self, text, target_language="en"):
@@ -200,6 +201,7 @@ class CustomerNotificationManager:
 
     def generate_response_message(self, feedback: Feedback):
         feedback_language = self.gemini_manager.detect_language(feedback.message)
+        logger.info("Sentiment is {}", feedback.sentiment)
 
         if feedback.sentiment == "positive":
             response = (
@@ -209,9 +211,12 @@ class CustomerNotificationManager:
             response = "Thank you for your feedback. They are noted and will be taken into consideration"
         elif feedback.sentiment == "negative":
             response = "We're sorry about your experience. A live agent is addressing the issue."
+        else:
+            response = "Thank you for your feedback"
 
         if feedback_language != "english":
             response = self.gemini_manager.translate_text(response, feedback_language)
+
         return f"{response}\nYour feedback: {feedback.message}"
 
     def escalate_to_agent(self, feedback: Feedback):
@@ -219,7 +224,9 @@ class CustomerNotificationManager:
         msg = self.gemini_manager._summarise_feedback(feedback.message)
         call = client.calls.create(
             twiml=f"<Response><Say>Customer {feedback.customer.first_name} left a negative review. Here's the summary: {msg}.Please review and assist.</Say></Response>",
-            to=os.getenv("TEST_CALL_NUMBER"), # this should be customer number but currently testing with hardcoded number
+            to=os.getenv(
+                "TEST_CALL_NUMBER"
+            ),  # this should be customer number but currently testing with hardcoded number
             from_=self.twilio_phone_number,
         )
         logger.info(f"Call initiated to live agent: {call.sid}")
