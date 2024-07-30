@@ -21,8 +21,8 @@ SECRET_KEY = os.getenv(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-#DEBUG = os.getenv("TW_DEBUG", False)
-DEBUG=False
+DEBUG = os.getenv("TW_DEBUG", False)
+# DEBUG=True
 
 ALLOWED_HOSTS = ["*"] if DEBUG else os.getenv("TW_ALLOWED_HOSTS").split(",")
 
