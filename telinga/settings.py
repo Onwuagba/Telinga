@@ -21,10 +21,11 @@ SECRET_KEY = os.getenv(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-#DEBUG = os.getenv("TW_DEBUG", False)
-DEBUG=False
+DEBUG = os.getenv("TW_DEBUG", False)
+# DEBUG=False
 
-ALLOWED_HOSTS = ["*"] if DEBUG else os.getenv("TW_ALLOWED_HOSTS").split(",")
+ALLOWED_HOSTS = [
+    "*"] if DEBUG else os.getenv("TW_ALLOWED_HOSTS").split(",")
 
 
 # Application definition
@@ -155,7 +156,8 @@ LOGGING = {
         },
         "file": {
             "class": "logging.FileHandler",
-            "filename": str(LOG_DIR / "debug.log"),  # Absolute path to debug log
+            # Absolute path to debug log
+            "filename": str(LOG_DIR / "debug.log"),
             "formatter": "verbose",
             "level": "DEBUG",
         },

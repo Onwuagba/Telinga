@@ -8,6 +8,7 @@ from sendgrid.helpers.mail import Mail
 
 import google.generativeai as genai
 from twilio.rest import Client
+from nylas import Client as nyClient
 
 from main.models import Feedback, MessageStatus
 
@@ -15,6 +16,12 @@ load_dotenv()
 
 genai.configure(api_key=os.getenv("TW_GEMINI_API_KEY"))
 logger = logging.getLogger("app")
+
+nylas_client = nyClient(
+    os.getenv('NYLAS_API_KEY'),
+    os.getenv('NYLAS_API_URI')
+)
+nylas_grant = os.getenv('NYLAS_GRANT_ID')
 
 
 class GeminiManager:
@@ -123,80 +130,15 @@ Translated text:"""
         translated_text = self._generate_response(prompt, text[:20])
         return translated_text
 
-# class GeminiManager:
-#     def __init__(self) -> None:
-#         self.model = genai.GenerativeModel("gemini-1.5-flash")
+    def generate_email_draft(self, subject, body):
+        """Generate an email draft using Gemini AI"""
+        prompt = f"Generate a professional email draft with the following subject: '{subject}' and main points: {body}"
+        return self._generate_response(prompt)
 
-#     def _generate_response(self, prompt, message=None):
-#         try:
-#             response = self.model.generate_content(prompt)
-#             if response.parts:
-#                 return response.parts[0].text.strip()
-#             else:
-#                 logger.error(f"No valid parts in the response. {response}")
-#                 return message or "This is a generic response"
-#         except Exception as e:
-#             logger.error(f"Error generating response: {e}")
-#             return message or "This is a generic response"
-
-#     def _email_subject(self, message):
-#         """
-#         Generates an email subject based on the provided message.
-
-#         Args:
-#             message: The message content for which the email subject is generated.
-
-#         Returns:
-#             The generated email subject as a string.
-#         """
-#         logger.info("Generating email subject...")
-#         prompt = f"Suggest email subject with no extra text for: {message}. Do not add any extra text, simply return only the email title"
-#         return self._generate_response(prompt, message[:20])
-
-#     def _sentiment_analysis(self, feedback):
-#         """
-#         Generate sentiment analysis for the given feedback.
-
-#         Args:
-#             feedback (str): The feedback sentence for which sentiment analysis needs to be generated.
-
-#         Returns:
-#             str: The sentiment analysis result, which can be either "positive", "negative", or "neutral".
-#         """
-#         logger.info("Generating sentiment analysis...")
-#         prompt = f"Is this sentence positive or negative or neutral: '{feedback}'? Do not add any extra text, simply return the result"
-#         result = self._generate_response(prompt).lower()
-
-#         if "positive" in result:
-#             return "positive"
-#         elif "negative" in result:
-#             return "negative"
-#         elif "neutral" in result:
-#             return "neutral"
-#         else:
-#             logger.error(f"Unexpected sentiment analysis result: {result}")
-#             return "neutral"
-
-#     def _summarise_feedback(self, feedback):
-#         logger.info("Summarising feedback...")
-#         prompt = f"Summarise this text: {feedback} in two sentences. Make it short and concise"
-#         return self._generate_response(prompt, feedback[:20])
-
-#     def detect_language(self, text):
-#         logger.info("Detecting language...")
-#         prompt = f"Detect the language of this text: '{text}'. Return only the language"
-#         detected_language = self._generate_response(prompt)
-#         logger.info(f"detected_language: {detected_language}")
-#         return detected_language.strip().lower()
-
-#     def translate_text(self, text, target_language="en"):
-#         detected_language = self.detect_language(text)
-#         logger.info(
-#             f"Translating text from {detected_language} to {target_language}..."
-#         )
-#         prompt = f"Translate this text to {target_language}: '{text}'"
-#         translated_text = self._generate_response(prompt, text[:20])
-#         return translated_text
+    def suggest_meeting_time(self, email_body):
+        """Suggest a meeting time based on email content"""
+        prompt = f"Based on the following email content, suggest an appropriate meeting time: {email_body}"
+        return self._generate_response(prompt)
 
 
 class CustomerNotificationManager:
@@ -206,6 +148,7 @@ class CustomerNotificationManager:
         self.twilio_phone_number = twilio_phone_number
         self.email_from = email_from
         self.gemini_manager = GeminiManager()  # Instantiate GeminiManager
+        self.nylas_client = nylas_client
 
     def generate_email_subject(self, message):
         """
@@ -221,11 +164,11 @@ class CustomerNotificationManager:
         return self.gemini_manager._email_subject(message)
 
     def send_message(self, customer):
-        logging.info(
+        logger.info(
             f"Notification service called by {customer.first_name} for business `{customer.message_format.business.username}`"
         )
         if customer.phone_number:
-            logging.info(
+            logger.info(
                 f"{customer.first_name} has a phone number {customer.phone_number}"
             )
             message_sid = self.send_sms(
@@ -233,7 +176,7 @@ class CustomerNotificationManager:
                 self.parse_message(
                     customer.message_format.message, customer),
             )
-            logging.info(
+            logger.info(
                 f"Notification to {customer.first_name} completed")
 
             # Save message status
@@ -241,24 +184,27 @@ class CustomerNotificationManager:
                 customer=customer, message_sid=message_sid, status="queued"
             )
         elif customer.email:
-            logging.info(
+            logger.info(
                 f"{customer.first_name} has email address {customer.email}")
             subject = self.generate_email_subject(
                 customer.message_format.message)
-            self.send_email(
+            if self.send_email_nylas(
                 customer.email,
                 subject,
                 self.parse_message(
                     customer.message_format.message, customer),
-            )
-            logging.info(
-                f"Notification to {customer.first_name} completed")
+            ):
+                logger.info(
+                    f"Notification to {customer.first_name} completed")
+            # kene: add retry logic later
+            logger.error(
+                f"Notification to {customer.first_name} failed to complete")
         else:
-            logging.error(
+            logger.error(
                 "Customer does not have a phone number or email")
 
     def send_sms(self, phone_number, message):
-        logging.info(f"Sending SMS to phone number {phone_number}")
+        logger.info(f"Sending SMS to phone number {phone_number}")
         # exception is raised in celery allowing it to fail & retry when necessary
         client = Client(self.account_sid, self.auth_token)
         if "+" not in phone_number:
@@ -271,7 +217,7 @@ class CustomerNotificationManager:
         return message.sid
 
     def send_email(self, email, subject, message):
-        logging.info(f"Sending email to {email}")
+        logger.info(f"Sending email to {email}")
         message = Mail(
             from_email=self.email_from,
             to_emails=email,
@@ -285,7 +231,7 @@ class CustomerNotificationManager:
         logger.info(f"Email sent to {email}")
 
     def parse_message(self, message_format, customer):
-        logging.info(f"Parsing message for {customer.first_name}")
+        logger.info(f"Parsing message for {customer.first_name}")
         parsed_message = message_format
         for header in settings.CSV_REQUIRED_HEADERS:
             placeholder = f"{{{{{header}}}}}".strip()
@@ -299,23 +245,24 @@ class CustomerNotificationManager:
 
     def respond_to_feedback(self, feedback: Feedback):
         customer = feedback.customer
-        logging.info(
+        logger.info(
             f"Responding to user feedback from {customer.first_name}")
         message = self.generate_response_message(feedback)
         try:
             if feedback.source == "sms":
-                logging.info(
+                logger.info(
                     f"Feedback from {feedback.customer.first_name} sent via SMS"
                 )
                 self.send_sms(customer.phone_number, message)
             elif feedback.source == "email":
-                logging.info(
+                logger.info(
                     f"Feedback from {feedback.customer.first_name} sent via email"
                 )
                 subject = self.generate_email_subject(message)
-                self.send_email(customer.email, subject, message)
+                self.send_email_nylas(
+                    customer.email, subject, message)
         except Exception as e:
-            logging.error(f"Error sending response to customer: {e}")
+            logger.error(f"Error sending response to customer: {e}")
 
     def generate_response_message(self, feedback: Feedback):
         feedback_language = self.gemini_manager.detect_language(
@@ -330,7 +277,13 @@ class CustomerNotificationManager:
         elif feedback.sentiment == "neutral":
             response = "Thank you for your feedback. They are noted and will be taken into consideration"
         elif feedback.sentiment == "negative":
-            response = "We're sorry about your experience. A live agent is addressing the issue."
+            if feedback.source == "sms":
+                response = "We're sorry about your experience. A live agent is addressing the issue."
+            else:
+                response = self.gemini_manager.generate_email_draft(
+                    "Addressing Your Concerns",
+                    f"Apologize and address the following feedback: {feedback.message}"
+                )
         else:
             response = "Thank you for your feedback"
 
@@ -338,17 +291,113 @@ class CustomerNotificationManager:
             response = self.gemini_manager.translate_text(
                 response, feedback_language)
 
-        return f"{response}\nYour feedback: {feedback.message}"
+        return f"{response}\nFeedback: {feedback.message}"
 
     def escalate_to_agent(self, feedback: Feedback):
-        client = Client(self.account_sid, self.auth_token)
-        msg = self.gemini_manager._summarise_feedback(
+        feedback_language = self.gemini_manager.detect_language(
             feedback.message)
-        call = client.calls.create(
-            twiml=f"<Response><Say>Customer {feedback.customer.first_name} left a negative review. Here's the summary: {msg}.Please review and assist.</Say></Response>",
-            to=os.getenv(
-                "TEST_CALL_NUMBER"
-            ),  # this should be customer number but currently testing with hardcoded number
-            from_=self.twilio_phone_number,
-        )
-        logger.info(f"Call initiated to live agent: {call.sid}")
+        title = "Feedback review with"
+
+        if feedback.source == "sms":
+            # initiate call to customer
+            client = Client(self.account_sid, self.auth_token)
+            msg = self.gemini_manager._summarise_feedback(
+                feedback.message)
+            call = client.calls.create(
+                twiml=f"<Response><Say>Customer {feedback.customer.first_name} left a negative review. Here's the summary: {msg}.Please review and assist.</Say></Response>",
+                to=os.getenv(
+                    "TEST_CALL_NUMBER"
+                ),  # this should be customer number but currently testing with hardcoded number
+                from_=self.twilio_phone_number,
+            )
+            logger.info(f"Call initiated to live agent: {call.sid}")
+        else:
+            if feedback_language != "english":
+                title = self.gemini_manager.translate_text(
+                    title, feedback_language)
+
+            # Suggest a meeting time
+            suggested_time = self.gemini_manager.suggest_meeting_time(
+                feedback.message)
+            # schedule meeting with customer
+            self.schedule_meeting(
+                feedback.customer, suggested_time, title)
+
+    def send_email_nylas(self, to_email, subject, body):
+        try:
+            draft = self.nylas_client.drafts.create(
+                nylas_grant,
+                request_body={
+                    "to": [{'email': to_email}],
+                    "reply_to": [{"email": self.email_from}],
+                    "subject": subject,
+                    "body": body,
+                }
+            )
+            draft.send(
+                nylas_grant,
+                draft)
+            logger.info(f"Email sent via Nylas to {to_email}")
+            return True
+        except Exception as e:
+            logger.error(
+                f"Error sending email via Nylas: {str(e.args[0])}")
+            return False
+
+    def schedule_meeting(self, customer, suggested_time, title):
+        """
+        Schedules a meeting on the default calendar using the provided customer object and suggested time.
+
+        Args:
+            customer (Customer): The customer object for whom the meeting is being scheduled.
+            suggested_time (datetime): The suggested time for the meeting.
+            title (str): A title for the meeting.
+
+        Returns:
+            bool: True if the meeting is scheduled, False otherwise.
+        """
+        try:
+            calendar_id = self.get_calendar_id()
+            event = self.nylas_client.events.create(
+                nylas_grant,
+                request_body={
+                    "title": f"Telinga: {title} {customer.first_name} {customer.last_name}",
+                    "when": {'start_time': suggested_time,
+                             'end_time': suggested_time + 3600}  # 1 hour meeting,
+                },
+                query_params={
+                    "calendar_id": calendar_id
+                }
+            )
+
+            # update meeting with customer email
+            self.nylas_client.events.update(
+                nylas_grant,
+                event,
+                request_body={
+                    "participants": [{"name": f"{customer.first_name} {customer.last_name}", 'email': customer.email}],
+                    "notify_participants": "true"
+                },
+                query_params={
+                    "calendar_id": calendar_id
+                }
+            )
+
+            logger.info(
+                f"Meeting scheduled with {customer.email} at {suggested_time}")
+            return True
+        except Exception as e:
+            logger.error(f"Error scheduling meeting: {e}")
+            return False
+
+    def analyze_email_thread(self, thread_id):
+        thread = self.nylas_client.threads.get(thread_id)
+        messages = thread.messages
+        combined_content = " ".join([msg.body for msg in messages])
+        summary = self.gemini_manager._summarise_feedback(
+            combined_content)
+        return summary
+
+    def get_calendar_id(self):
+        # just return the first id which is often the user email for Google Calendar
+        return next((c.id for c in nylas_client.calendars.list(nylas_grant)[0]), None)

@@ -1,8 +1,9 @@
 from django.conf import settings
-from main.manager import CustomerNotificationManager, GeminiManager
+from main.manager import CustomerNotificationManager, GeminiManager, nylas_client
 
 
 gemini_manager = GeminiManager()
+nylas_client = nylas_client
 
 
 message_manager = CustomerNotificationManager(

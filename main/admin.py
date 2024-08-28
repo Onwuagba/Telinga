@@ -21,11 +21,13 @@ class APIKeyAdmin(admin.ModelAdmin):
             obj.key = self.generate_key()
         super().save_model(request, obj, form, change)
         action = "Updated" if change else "Created"
-        self.log_action(obj, f"API Key {action}: {obj.business} by {request.user}")
+        self.log_action(
+            obj, f"API Key {action}: {obj.business} by {request.user}")
 
     def delete_model(self, request, obj):
         super().delete_model(request, obj)
-        self.log_action(obj, f"API Key Deleted: {obj.business} by {request.user}")
+        self.log_action(
+            obj, f"API Key Deleted: {obj.business} by {request.user}")
 
     def generate_key(self):
         return secrets.token_urlsafe(40)
@@ -57,7 +59,8 @@ class APIKeyAdmin(admin.ModelAdmin):
                 api_key, f"API Key Changed: {api_key.business} by {request.user}"
             )
         self.message_user(
-            request, _("API keys successfully changed for selected items.")
+            request, _(
+                "API keys successfully changed for selected items.")
         )
 
     change_api_key.short_description = _("Change API Key")
@@ -98,7 +101,8 @@ class CustomerAdmin(admin.ModelAdmin):
         return qs.filter(message_format__business=request.user)
 
     def get_form(self, request, obj=None, **kwargs):
-        form = super(CustomerAdmin, self).get_form(request, obj, **kwargs)
+        form = super(CustomerAdmin, self).get_form(
+            request, obj, **kwargs)
         form.current_user = request.user
         return form
 
@@ -106,11 +110,13 @@ class CustomerAdmin(admin.ModelAdmin):
         if not request.user.is_superuser:
             if obj.message_format and obj.message_format.business:
                 obj.message_format.business = request.user
-        super(CustomerAdmin, self).save_model(request, obj, form, change)
+        super(CustomerAdmin, self).save_model(
+            request, obj, form, change)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if not request.user.is_superuser and db_field.name == "message_format":
-            kwargs["queryset"] = MessageFormat.objects.filter(business=request.user)
+            kwargs["queryset"] = MessageFormat.objects.filter(
+                business=request.user)
         return super(CustomerAdmin, self).formfield_for_foreignkey(
             db_field, request, **kwargs
         )
@@ -123,10 +129,12 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(Feedback)
 class FeedbackAdmin(admin.ModelAdmin):
-    list_display = ("customer", "message", "sentiment", "created_at")
-    search_fields = ("customer__first_name", "customer__last_name", "message")
+    list_display = ("customer", "message", "source",
+                    "sentiment", "created_at")
+    search_fields = ("customer__first_name",
+                     "customer__last_name", "message")
     readonly_fields = ("sentiment", "created_at")
-    list_filter = ("sentiment",)
+    list_filter = ("sentiment", "source")
 
 
 @admin.register(MessageFormat)
@@ -137,7 +145,8 @@ class MessageFormatAdmin(admin.ModelAdmin):
 
 @admin.register(MessageStatus)
 class MessageStatusAdmin(admin.ModelAdmin):
-    list_display = ("customer", "message_sid", "status", "date_created", "date_updated")
+    list_display = ("customer", "message_sid", "status",
+                    "date_created", "date_updated")
     list_filter = ("status", "date_created", "date_updated")
     search_fields = (
         "customer__email",
