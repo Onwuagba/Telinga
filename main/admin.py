@@ -4,7 +4,7 @@ import secrets
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
-from main.models import Customer, Feedback, APIKey, MessageFormat, MessageStatus
+from main.models import Customer, Feedback, APIKey, MessageFormat, MessageStatus, NylasWebhook
 from main.forms import CustomerAdminForm
 
 logger = logging.getLogger("app")
@@ -152,4 +152,16 @@ class MessageStatusAdmin(admin.ModelAdmin):
         "customer__email",
         "customer__first_name",
         "customer__phone_number",
+    )
+
+
+@admin.register(NylasWebhook)
+class MessageStatusAdmin(admin.ModelAdmin):
+    list_display = ("webhook_id", "secret_key",
+                    "trigger_type", "created_at")
+    list_filter = ("trigger_type",)
+    search_fields = (
+        "trigger_type",
+        "webhook_id",
+        "secret_key",
     )

@@ -32,6 +32,14 @@ def schedule_message(self, customer_id):
 
 @shared_task
 def check_message_delivery_status():
+    """
+    Periodically check the status of messages that have been sent to customers
+    and update the MessageStatus records accordingly.
+
+    This is for Twilio alone.
+
+    This task is designed to be run periodically as a Celery task.
+    """
     client = Client(settings.ACCOUNT_SID, settings.AUTH_TOKEN)
     message_statuses = MessageStatus.objects.filter(
         status__in=["queued", "sending", "sent"]

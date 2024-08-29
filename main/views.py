@@ -1,5 +1,8 @@
 import csv
+import hashlib
+import hmac
 import io
+import json
 import logging
 import os
 import re
@@ -8,6 +11,7 @@ import secrets
 from django.conf import settings
 from django.contrib.auth import get_user_model, authenticate
 from django.db import IntegrityError
+from django.http import HttpResponse
 from django.template.defaultfilters import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
@@ -23,8 +27,8 @@ from rest_framework.exceptions import ValidationError
 from twilio.request_validator import RequestValidator
 
 from main.api_response import CustomAPIResponse
-from main.manager import nylas_client
-from main.models import APIKey, MessageFormat, Customer, Feedback
+from main.manager import nylas_client, nylas_grant
+from main.models import APIKey, MessageFormat, Customer, Feedback, MessageStatus, NylasWebhook
 from main.serializers import (
     APIKeySerializer,
     CustomerSerializer,
@@ -32,7 +36,7 @@ from main.serializers import (
     UserSerializer,
 )
 from main.tasks import schedule_message
-from main.utils import message_manager
+from main.utils import message_manager, nylas_client
 
 load_dotenv()
 
@@ -514,7 +518,7 @@ class GetEmailThreadsView(APIView):
 
     def get(self, request):
         try:
-            threads = nylas_client.threads.all()
+            threads = nylas_client.threads.list()
             data = [{"id": t.id, "subject": t.subject}
                     for t in threads]
             return CustomAPIResponse(data, status.HTTP_200_OK, "success").send()
@@ -552,6 +556,9 @@ class ScheduleMeetingView(APIView):
         try:
             customer_id = request.data.get("customer_id")
             suggested_time = request.data.get("suggested_time")
+            title = request.data.get(
+                "title") or "Review Meeting"
+
             if not customer_id or not suggested_time:
                 return CustomAPIResponse(
                     "Customer ID and suggested time are required",
@@ -560,7 +567,9 @@ class ScheduleMeetingView(APIView):
                 ).send()
 
             customer = Customer.objects.get(id=customer_id)
-            message_manager.schedule_meeting(customer, suggested_time)
+            message_manager.schedule_meeting(
+                customer, suggested_time, title
+            )
             return CustomAPIResponse(
                 "Meeting scheduled successfully", status.HTTP_200_OK, "success"
             ).send()
@@ -572,3 +581,93 @@ class ScheduleMeetingView(APIView):
             return CustomAPIResponse(
                 str(e), status.HTTP_500_INTERNAL_SERVER_ERROR, "failed"
             ).send()
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class NylasWebhookView(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ["get", "post"]
+
+    def get(self, request, *args, **kwargs):
+        # Handle the webhook verification GET request
+        challenge = request.GET.get("challenge")
+        if challenge:
+            return HttpResponse(challenge, content_type="text/plain", status=200)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request, *args, **kwargs):
+        try:
+            # Validate the webhook signature
+            signature = request.headers.get('X-Nylas-Signature')
+            secret_key = self.get_secret_key()
+
+            if not self.validate_signature(signature, secret_key, request.body):
+                logger.error("Invalid webhook signature.")
+                return Response({"error": "Invalid signature"}, status=status.HTTP_403_FORBIDDEN)
+
+            event = json.loads(request.body)
+
+            if event.get("type") == "thread.replied":
+                self.handle_thread_replied(event["data"])
+
+            return Response({"status": "success"}, status=status.HTTP_200_OK)
+
+        except json.JSONDecodeError:
+            return Response({"error": "Invalid JSON"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @staticmethod
+    def validate_signature(signature, secret_key, payload):
+        computed_signature = hmac.new(
+            key=secret_key.encode('utf-8'),
+            msg=payload,
+            digestmod=hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(signature, computed_signature)
+
+    @staticmethod
+    def get_secret_key():
+        try:
+            webhook = NylasWebhook.objects.get(
+                trigger_type='thread.replied')
+            return webhook.secret_key if webhook else settings.NYLAS_CLIENT_SECRET
+        except NylasWebhook.DoesNotExist:
+            return settings.NYLAS_CLIENT_SECRET
+
+    def handle_thread_replied(self, data):
+        # Retrieve the message details from the event data
+        reply_message_id = data["object"]["message_id"]
+        root_message_id = data["object"]["root_message_id"]
+
+        try:
+            # Retrieve the original message status using the root_message_id
+            sent_email = MessageStatus.objects.get(
+                message_id=root_message_id)
+            customer = sent_email.customer
+
+            # Retrieve the reply message using Nylas SDK
+            reply_message = nylas_client.messages.find(
+                os.getenv("NYLAS_GRANT_ID"), reply_message_id
+            )
+
+            self.process_customer_reply(reply_message, customer)
+
+        except MessageStatus.DoesNotExist:
+            logger.warning(
+                f"No matching sent email found for root_message_id {root_message_id}"
+            )
+        except Exception as e:
+            logger.error(f"Error processing thread reply: {e}")
+
+    def process_customer_reply(self, message, customer: Customer):
+        logger.info(f"Processing reply from {customer.email}")
+
+        Feedback.objects.create(
+            customer=customer,
+            message=message.body,
+            source="email"
+        )
+
+        # Log the reply
+        logger.info(f"Reply from {customer.email}: {message.body}")
