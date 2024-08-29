@@ -22,9 +22,9 @@ SECRET_KEY = os.getenv(
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("TW_DEBUG", False)
-# DEBUG=True
 
-ALLOWED_HOSTS = ["*"] if DEBUG else os.getenv("TW_ALLOWED_HOSTS").split(",")
+ALLOWED_HOSTS = [
+    "*"] if DEBUG else os.getenv("TW_ALLOWED_HOSTS").split(",")
 
 
 # Application definition
@@ -155,7 +155,8 @@ LOGGING = {
         },
         "file": {
             "class": "logging.FileHandler",
-            "filename": str(LOG_DIR / "debug.log"),  # Absolute path to debug log
+            # Absolute path to debug log
+            "filename": str(LOG_DIR / "debug.log"),
             "formatter": "verbose",
             "level": "DEBUG",
         },
@@ -243,6 +244,7 @@ TWILIO_PHONE_NUMBER = os.getenv("TW_PHONE_NUMBER")
 
 # SENDGRID CRED
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+SITE_DOMAIN = os.getenv("SITE_DOMAIN")
 
 
 MAX_UPLOAD_FILE_SIZE = os.getenv(

@@ -1,0 +1,16 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools %}
+{{ block.super }}
+{% if custom_tabs %}
+<div class="custom-object-tools" style="margin-top: 10px;">
+    {% for tab in custom_tabs %}
+    <a href="{{ tab.url }}" class="button">{{ tab.name }}</a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block search %}
+{{ block.super }}
+{% endblock %}

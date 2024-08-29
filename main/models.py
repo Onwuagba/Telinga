@@ -40,7 +40,8 @@ class Customer(models.Model):
     phone_number = models.CharField(
         max_length=20,
         validators=[
-            RegexValidator(regex=r"^\d+$", message="Phone number must be numeric")
+            RegexValidator(
+                regex=r"^\d+$", message="Phone number must be numeric")
         ],
         null=True,
         blank=True,
@@ -66,7 +67,8 @@ class Customer(models.Model):
 
     def clean(self):
         if not self.email and not self.phone_number:
-            raise ValidationError(_("Email and phone number cannot both be null"))
+            raise ValidationError(
+                _("Email and phone number cannot both be null"))
 
     def __str__(self):
         return (
@@ -113,7 +115,8 @@ class MessageStatus(models.Model):
     customer = models.OneToOneField(
         Customer, on_delete=models.CASCADE, related_name="message_status"
     )
-    message_sid = models.CharField(max_length=34, unique=True)  # Twilio message SID
+    message_sid = models.CharField(
+        max_length=34, unique=True)  # message SID
     status = models.CharField(max_length=20)  # Delivery status
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
@@ -123,3 +126,17 @@ class MessageStatus(models.Model):
 
     def __str__(self):
         return f"{self.status}"
+
+
+class NylasWebhook(models.Model):
+    webhook_id = models.CharField(max_length=100, unique=True)
+    secret_key = models.CharField(max_length=100)
+    # trigger could be single or comma separated.
+    # developer can create their own trigger type and use in code.
+    # reason for not using choiceField
+    # field is unique to prevent collisions
+    trigger_type = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Nylas Webhook {self.webhook_id}"

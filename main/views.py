@@ -1,5 +1,8 @@
 import csv
+import hashlib
+import hmac
 import io
+import json
 import logging
 import os
 import re
@@ -8,6 +11,7 @@ import secrets
 from django.conf import settings
 from django.contrib.auth import get_user_model, authenticate
 from django.db import IntegrityError
+from django.http import HttpResponse
 from django.template.defaultfilters import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
@@ -23,7 +27,8 @@ from rest_framework.exceptions import ValidationError
 from twilio.request_validator import RequestValidator
 
 from main.api_response import CustomAPIResponse
-from main.models import APIKey, MessageFormat, Customer, Feedback
+from main.manager import nylas_client, nylas_grant
+from main.models import APIKey, MessageFormat, Customer, Feedback, MessageStatus, NylasWebhook
 from main.serializers import (
     APIKeySerializer,
     CustomerSerializer,
@@ -31,6 +36,7 @@ from main.serializers import (
     UserSerializer,
 )
 from main.tasks import schedule_message
+from main.utils import message_manager, nylas_client
 
 load_dotenv()
 
@@ -72,7 +78,8 @@ class UserRegistrationView(CreateAPIView):
             status_code = status.HTTP_400_BAD_REQUEST
             code_status = "failed"
 
-        response = CustomAPIResponse(message, status_code, code_status)
+        response = CustomAPIResponse(
+            message, status_code, code_status)
         return response.send()
 
 
@@ -94,7 +101,8 @@ class APIKeyView(RetrieveAPIView):
             # Attempt to get an existing APIKey or create a new one with a unique key
             while True:
                 try:
-                    api_key, created = APIKey.objects.get_or_create(business=user)
+                    api_key, created = APIKey.objects.get_or_create(
+                        business=user)
                     if created:
                         api_key.key = secrets.token_urlsafe(40)
                         api_key.save()
@@ -104,11 +112,13 @@ class APIKeyView(RetrieveAPIView):
                     code_status = "success"
                     break  # Exit the loop if successful
                 except IntegrityError:
-                    logger.error("Integrity error while trying to create api key")
+                    logger.error(
+                        "Integrity error while trying to create api key")
                     # Handle the case where the generated key already exists
                     continue
 
-        response = CustomAPIResponse(message, status_code, code_status)
+        response = CustomAPIResponse(
+            message, status_code, code_status)
         return response.send()
 
 
@@ -124,7 +134,8 @@ class ChangeAPIKeyView(APIView):
             business_key = user.business_key
         except APIKey.DoesNotExist:
             # Handle case where related APIKey does not exist
-            business_key = APIKey.objects.create(user=user, key=new_api_key)
+            business_key = APIKey.objects.create(
+                user=user, key=new_api_key)
 
         business_key.key = new_api_key
         business_key.save()
@@ -197,8 +208,10 @@ class UploadCustomerView(APIView):
         """
 
         # Create a regex pattern for allowed placeholders
-        allowed_placeholders = {f"{{{{{header}}}}}" for header in headers}
-        placeholders = set(re.findall(r"{{\s*\w+\s*}}", message_format))
+        allowed_placeholders = {
+            f"{{{{{header}}}}}" for header in headers}
+        placeholders = set(re.findall(
+            r"{{\s*\w+\s*}}", message_format))
 
         # Check if all placeholders in the message format are allowed
         if not placeholders.issubset(allowed_placeholders):
@@ -221,7 +234,8 @@ class UploadCustomerView(APIView):
         Returns:
             bool: True if the headers are valid, False otherwise.
         """
-        headers = [header.strip() for header in headers if header.strip()]
+        headers = [header.strip()
+                   for header in headers if header.strip()]
 
         if headers != settings.CSV_REQUIRED_HEADERS:
             logger.error(
@@ -352,7 +366,8 @@ class UploadCustomerView(APIView):
                 reader, start=1
             ):  # Start from 1 to account for the skipped header
                 # Sanitize and validate input data
-                phone_number = row[0].strip() if len(row) > 0 else None
+                phone_number = row[0].strip() if len(
+                    row) > 0 else None
                 email = row[1].strip() if len(row) > 1 else None
                 first_name = row[2].strip() if len(row) > 2 else None
                 last_name = row[3].strip() if len(row) > 3 else None
@@ -396,12 +411,14 @@ class UploadCustomerView(APIView):
                 # Schedule or trigger message delivery
                 if delivery_time == "now":
                     print("sending message to celery now")
-                    schedule_message.apply_async(args=[customer.id], countdown=0)
+                    schedule_message.apply_async(
+                        args=[customer.id], countdown=0)
                 else:
                     print(
                         f"sending message to {customer.first_name} at {delivery_time}"
                     )
-                    schedule_message.apply_async(args=[customer.id], eta=delivery_time)
+                    schedule_message.apply_async(
+                        args=[customer.id], eta=delivery_time)
 
             if errors:
                 return CustomAPIResponse(
@@ -446,7 +463,8 @@ class TwilioWebhookView(APIView):
         url = request.build_absolute_uri()
         post_vars = request.POST.dict()
 
-        validate_request = validator.validate(url, post_vars, signature)
+        validate_request = validator.validate(
+            url, post_vars, signature)
         print("Twilio validation returned ", validate_request)
 
         if not validator.validate(url, post_vars, signature) and not settings.DEBUG:
@@ -462,19 +480,23 @@ class TwilioWebhookView(APIView):
         # to_number = request.POST.get("To")
         email = request.POST.get("Email")
 
-        logger.info(f"Incoming webhook feedback from {from_number or email}: {body}")
+        logger.info(
+            f"Incoming webhook feedback from {from_number or email}: {body}")
 
         # Find the customer by phone number or email
         customer = None
         if from_number:
             if "+" in from_number:
                 from_number = str(from_number).replace("+", "")
-            customer = Customer.objects.filter(phone_number=from_number).first()
+            customer = Customer.objects.filter(
+                phone_number=from_number).first()
         elif email:
-            customer = Customer.objects.filter(email__iexact=email).first()
+            customer = Customer.objects.filter(
+                email__iexact=email).first()
 
         if not customer:
-            logger.error(f"No customer found for {from_number or email}")
+            logger.error(
+                f"No customer found for {from_number or email}")
             return Response(
                 {"error": "Customer not found"}, status=status.HTTP_404_NOT_FOUND
             )
@@ -488,3 +510,164 @@ class TwilioWebhookView(APIView):
         # post-save signal is triggered to analyse sentiment and  respond to feedback
 
         return Response({"message": "Feedback processed"}, status=status.HTTP_200_OK)
+
+
+# NYLAS VIEWS
+class GetEmailThreadsView(APIView):
+    http_method_names = ["get"]
+
+    def get(self, request):
+        try:
+            threads = nylas_client.threads.list()
+            data = [{"id": t.id, "subject": t.subject}
+                    for t in threads]
+            return CustomAPIResponse(data, status.HTTP_200_OK, "success").send()
+        except Exception as e:
+            return CustomAPIResponse(
+                str(e), status.HTTP_500_INTERNAL_SERVER_ERROR, "failed"
+            ).send()
+
+
+class AnalyzeEmailThreadView(APIView):
+    http_method_names = ["post"]
+
+    def post(self, request):
+        try:
+            thread_id = request.data.get("thread_id")
+            if not thread_id:
+                return CustomAPIResponse(
+                    "Thread ID is required", status.HTTP_400_BAD_REQUEST, "failed"
+                ).send()
+
+            summary = message_manager.analyze_email_thread(thread_id)
+            return CustomAPIResponse(
+                {"summary": summary}, status.HTTP_200_OK, "success"
+            ).send()
+        except Exception as e:
+            return CustomAPIResponse(
+                str(e), status.HTTP_500_INTERNAL_SERVER_ERROR, "failed"
+            ).send()
+
+
+class ScheduleMeetingView(APIView):
+    http_method_names = ["post"]
+
+    def post(self, request):
+        try:
+            customer_id = request.data.get("customer_id")
+            suggested_time = request.data.get("suggested_time")
+            title = request.data.get(
+                "title") or "Review Meeting"
+
+            if not customer_id or not suggested_time:
+                return CustomAPIResponse(
+                    "Customer ID and suggested time are required",
+                    status.HTTP_400_BAD_REQUEST,
+                    "failed",
+                ).send()
+
+            customer = Customer.objects.get(id=customer_id)
+            message_manager.schedule_meeting(
+                customer, suggested_time, title
+            )
+            return CustomAPIResponse(
+                "Meeting scheduled successfully", status.HTTP_200_OK, "success"
+            ).send()
+        except Customer.DoesNotExist:
+            return CustomAPIResponse(
+                "Customer not found", status.HTTP_404_NOT_FOUND, "failed"
+            ).send()
+        except Exception as e:
+            return CustomAPIResponse(
+                str(e), status.HTTP_500_INTERNAL_SERVER_ERROR, "failed"
+            ).send()
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class NylasWebhookView(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ["get", "post"]
+
+    def get(self, request, *args, **kwargs):
+        # Handle the webhook verification GET request
+        challenge = request.GET.get("challenge")
+        if challenge:
+            return HttpResponse(challenge, content_type="text/plain", status=200)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request, *args, **kwargs):
+        try:
+            # Validate the webhook signature
+            signature = request.headers.get('X-Nylas-Signature')
+            secret_key = self.get_secret_key()
+
+            if not self.validate_signature(signature, secret_key, request.body):
+                logger.error("Invalid webhook signature.")
+                return Response({"error": "Invalid signature"}, status=status.HTTP_403_FORBIDDEN)
+
+            event = json.loads(request.body)
+
+            if event.get("type") == "thread.replied":
+                self.handle_thread_replied(event["data"])
+
+            return Response({"status": "success"}, status=status.HTTP_200_OK)
+
+        except json.JSONDecodeError:
+            return Response({"error": "Invalid JSON"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @staticmethod
+    def validate_signature(signature, secret_key, payload):
+        computed_signature = hmac.new(
+            key=secret_key.encode('utf-8'),
+            msg=payload,
+            digestmod=hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(signature, computed_signature)
+
+    @staticmethod
+    def get_secret_key():
+        try:
+            webhook = NylasWebhook.objects.get(
+                trigger_type='thread.replied')
+            return webhook.secret_key if webhook else settings.NYLAS_CLIENT_SECRET
+        except NylasWebhook.DoesNotExist:
+            return settings.NYLAS_CLIENT_SECRET
+
+    def handle_thread_replied(self, data):
+        # Retrieve the message details from the event data
+        reply_message_id = data["object"]["message_id"]
+        root_message_id = data["object"]["root_message_id"]
+
+        try:
+            # Retrieve the original message status using the root_message_id
+            sent_email = MessageStatus.objects.get(
+                message_id=root_message_id)
+            customer = sent_email.customer
+
+            # Retrieve the reply message using Nylas SDK
+            reply_message = nylas_client.messages.find(
+                os.getenv("NYLAS_GRANT_ID"), reply_message_id
+            )
+
+            self.process_customer_reply(reply_message, customer)
+
+        except MessageStatus.DoesNotExist:
+            logger.warning(
+                f"No matching sent email found for root_message_id {root_message_id}"
+            )
+        except Exception as e:
+            logger.error(f"Error processing thread reply: {e}")
+
+    def process_customer_reply(self, message, customer: Customer):
+        logger.info(f"Processing reply from {customer.email}")
+
+        Feedback.objects.create(
+            customer=customer,
+            message=message.body,
+            source="email"
+        )
+
+        # Log the reply
+        logger.info(f"Reply from {customer.email}: {message.body}")
