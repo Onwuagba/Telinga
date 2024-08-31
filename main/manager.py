@@ -469,15 +469,16 @@ class CustomerNotificationManager:
                     }  # creates a webhook for tracking when user replies to email
                 }
             )
-            sent_message = draft.send(
+            sent_message = self.nylas_client.drafts.send(
                 nylas_grant,
-                draft)
+                draft[0].id)
             logger.info(f"Email sent via Nylas to {to_email}")
-            return True, sent_message.id
+            print('Sent message data', sent_message)
+            return True, sent_message[0].id
         except Exception as e:
             logger.error(
-                f"Error sending email via Nylas: {str(e.args[0])}")
-            return False, ""
+                f"Error sending email via Nylas: {e}")
+            return False, e
 
     def schedule_meeting(self, customer, suggested_time, title):
         """

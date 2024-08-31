@@ -596,6 +596,7 @@ class NylasWebhookView(APIView):
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request, *args, **kwargs):
+        logger.info('Nylas Webhook call starting...')
         try:
             # Validate the webhook signature
             signature = request.headers.get('X-Nylas-Signature')
@@ -639,11 +640,13 @@ class NylasWebhookView(APIView):
         # Retrieve the message details from the event data
         reply_message_id = data["object"]["message_id"]
         root_message_id = data["object"]["root_message_id"]
+        logger.info(
+            f"Reply Id: {reply_message_id}, Message Id: {root_message_id}")
 
         try:
             # Retrieve the original message status using the root_message_id
             sent_email = MessageStatus.objects.get(
-                message_id=root_message_id)
+                message_sid=root_message_id)
             customer = sent_email.customer
 
             # Retrieve the reply message using Nylas SDK
@@ -665,7 +668,7 @@ class NylasWebhookView(APIView):
 
         Feedback.objects.create(
             customer=customer,
-            message=message.body,
+            message=message[0].body,
             source="email"
         )
 
