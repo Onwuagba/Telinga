@@ -88,6 +88,7 @@ class CustomerAdmin(admin.ModelAdmin):
         "message_format",
         "delivery_status",
         "date_uploaded",
+        "updated_at",
     )
     search_fields = (
         "phone_number",

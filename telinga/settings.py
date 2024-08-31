@@ -138,56 +138,77 @@ if not LOG_DIR.exists():
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "filters": {},
-    "formatters": {
-        "verbose": {
-            "format": (
-                "[%(asctime)s] %(levelname)s [%(name)s-%(lineno)s] %(module)s "
-                "%(message)s"
-            ),
-            "datefmt": "%d/%b/%Y %H:%M:%S",
-        },
-    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
         },
         "file": {
             "class": "logging.FileHandler",
-            # Absolute path to debug log
-            "filename": str(LOG_DIR / "debug.log"),
-            "formatter": "verbose",
-            "level": "DEBUG",
-        },
-        "error_file": {
-            "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": LOG_DIR / "app-error.log",  # Absolute path to error log
-            "when": "midnight",
-            "backupCount": 10,
-            "formatter": "verbose",
-            "level": "ERROR",
-        },
-        "info_file": {
-            "class": "logging.handlers.TimedRotatingFileHandler",
-            "filename": LOG_DIR / "app-info.log",  # Absolute path to info log
-            "when": "midnight",
-            "backupCount": 10,
-            "formatter": "verbose",
-            "level": "INFO",
+            "filename": str(LOG_DIR / "app.log"),
         },
     },
     "loggers": {
         "app": {
-            "handlers": ["console", "error_file", "info_file"],
-            "level": "DEBUG",
-        },
-        "app_debug": {
             "handlers": ["console", "file"],
             "level": "DEBUG",
+            "propagate": True,
         },
     },
 }
+
+# LOGGING = {
+#     "version": 1,
+#     "disable_existing_loggers": False,
+#     "filters": {},
+#     "formatters": {
+#         "verbose": {
+#             "format": (
+#                 "[%(asctime)s] %(levelname)s [%(name)s-%(lineno)s] %(module)s "
+#                 "%(message)s"
+#             ),
+#             "datefmt": "%d/%b/%Y %H:%M:%S",
+#         },
+#     },
+#     "handlers": {
+#         "console": {
+#             "class": "logging.StreamHandler",
+#             "formatter": "verbose",
+#         },
+#         "file": {
+#             "class": "logging.FileHandler",
+#             # Absolute path to debug log
+#             "filename": str(LOG_DIR / "debug.log"),
+#             "formatter": "verbose",
+#             "level": "DEBUG",
+#         },
+#         "error_file": {
+#             "class": "logging.handlers.TimedRotatingFileHandler",
+#             "filename": LOG_DIR / "app-error.log",  # Absolute path to error log
+#             "when": "midnight",
+#             "backupCount": 10,
+#             "formatter": "verbose",
+#             "level": "ERROR",
+#         },
+#         "info_file": {
+#             "class": "logging.handlers.TimedRotatingFileHandler",
+#             "filename": LOG_DIR / "app-info.log",  # Absolute path to info log
+#             "when": "midnight",
+#             "backupCount": 10,
+#             "formatter": "verbose",
+#             "level": "INFO",
+#         },
+#     },
+#     "loggers": {
+#         "app": {
+#             "handlers": ["console", "error_file", "info_file"],
+#             "level": "DEBUG",
+#         },
+#         "app_debug": {
+#             "handlers": ["console", "file"],
+#             "level": "DEBUG",
+#         },
+#     },
+# }
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
