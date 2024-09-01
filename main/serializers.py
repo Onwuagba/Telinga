@@ -16,7 +16,8 @@ class UserSerializer(serializers.ModelSerializer):
         required=True,
         validators=[validate_password],
     )
-    confirm_password = serializers.CharField(write_only=True, required=True)
+    confirm_password = serializers.CharField(
+        write_only=True, required=True)
 
     class Meta:
         model = User
@@ -24,9 +25,11 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if not data.get("password") or not data.get("confirm_password"):
-            raise serializers.ValidationError("Please enter a password and confirm it")
+            raise serializers.ValidationError(
+                "Please enter a password and confirm it")
         if data.get("password") != data.get("confirm_password"):
-            raise serializers.ValidationError("Your passwords do not match")
+            raise serializers.ValidationError(
+                "Your passwords do not match")
 
         return data
 
@@ -40,6 +43,18 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 
+class AdminUserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = get_user_model()
+        fields = ('username', 'email', 'password')
+
+    def create(self, validated_data):
+        user = get_user_model().objects.create_user(**validated_data)
+        return user
+
+
 class UpdatePasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
@@ -47,7 +62,8 @@ class UpdatePasswordSerializer(serializers.Serializer):
     def validate_current_password(self, value):
         user = self.context["request"].user
         if not user.check_password(value):
-            raise serializers.ValidationError("Current password is incorrect.")
+            raise serializers.ValidationError(
+                "Current password is incorrect.")
         return value
 
     def update(self, instance, validated_data):
@@ -57,7 +73,8 @@ class UpdatePasswordSerializer(serializers.Serializer):
 
 
 class APIKeySerializer(serializers.ModelSerializer):
-    business_name = serializers.CharField(source="business.username", read_only=True)
+    business_name = serializers.CharField(
+        source="business.username", read_only=True)
 
     class Meta:
         model = APIKey
@@ -74,11 +91,13 @@ class MessageFormatSerializer(serializers.ModelSerializer):
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
-        fields = ["phone_number", "email", "first_name", "last_name", "message_format"]
+        fields = ["phone_number", "email",
+                  "first_name", "last_name", "message_format"]
 
 
 class FeedbackSerializer(serializers.ModelSerializer):
     class Meta:
         model = Feedback
-        fields = ["id", "customer", "message", "sentiment", "created_at"]
+        fields = ["id", "customer", "message",
+                  "sentiment", "created_at"]
         read_only_fields = ["sentiment"]

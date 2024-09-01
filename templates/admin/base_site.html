@@ -1,93 +1,91 @@
 {% extends "admin/base.html" %}
 
-{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('NIBSS-UBA Fingerprint Admin Portal') }}{% endblock %}
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Telinga Admin Portal') }}{% endblock %}
 
 {% block branding %}
-<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('NIBSS-UBA Fingerprint Admin Portal') }}</a></h1>
+<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Telinga Admin Portal') }}</a></h1>
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
 
 {% block extrastyle %}{{ block.super }}
 <style>
-:root {
-    --primary: #c23e3e;
-    --secondary: #c23e3e;
-    --accent: #ffffff;
-    --primary-fg: #ffffff;
-  
-    --body-fg: #333;
-    --body-bg: #ffffff;
-    --body-quiet-color: #666;
-    --body-loud-color: #000;
-  
-    --header-color: #ffffff;
-    --header-branding-color: var(--accent);
-    --header-bg: var(--secondary);
-    --header-link-color: var(--primary-fg);
-  
-    --breadcrumbs-fg: #c4dce8;
-    --breadcrumbs-link-fg: var(--body-bg);
-    --breadcrumbs-bg: var(--primary);
-  
-    --link-fg: #54302e; /*#447e9b;*/
-    --link-hover-color: #9c5a56;
-    --link-selected-fg: #8a2418;
-  
-    --hairline-color: #e8e8e8;
-    --border-color: #ccc;
-  
-    --error-fg: #ba2121;
-  
-    --message-success-bg: #dfd;
-    --message-warning-bg: #ffc;
-    --message-error-bg: #ffefef;
-  
-    --darkened-bg: #f8f8f8; 
-    --selected-bg: #e4e4e4; 
-    --selected-row: #ffcaca;
-  
-    --button-fg: #fff;
-    --button-bg: var(--primary);
-    --button-hover-bg: #609ab6;
-    --default-button-bg: var(--secondary);
-    --default-button-hover-bg: #205067;
-    --close-button-bg: #888; 
-    --close-button-hover-bg: #747474;
-    --delete-button-bg: #ba2121;
-    --delete-button-hover-bg: #a41515;
-  
-    --object-tools-fg: var(--button-fg);
-    --object-tools-bg: var(--close-button-bg);
-    --object-tools-hover-bg: var(--close-button-hover-bg);
-  }
+    :root {
+        --primary: #1a2b3c;
+        /* Dark blue */
+        --secondary: #2c3e50;
+        /* Slightly lighter blue */
+        --accent: #3498db;
+        /* Bright blue for accents */
+        --primary-fg: #ffffff;
+        --body-fg: #333;
+        --body-bg: #ffffff;
+        /* Maintaining white background */
+        --body-quiet-color: #666;
+        --body-loud-color: #000;
+        --header-color: #ffffff;
+        --header-branding-color: var(--accent);
+        --header-bg: var(--secondary);
+        --header-link-color: var(--primary-fg);
+        --breadcrumbs-fg: #ecf0f1;
+        --breadcrumbs-link-fg: var(--body-bg);
+        --breadcrumbs-bg: var(--primary);
+        --link-fg: #2980b9;
+        --link-hover-color: #3498db;
+        --link-selected-fg: #1abc9c;
+        --hairline-color: #ecf0f1;
+        --border-color: #bdc3c7;
+        --error-fg: #e74c3c;
+        --message-success-bg: #d4efdf;
+        --message-warning-bg: #fcf3cf;
+        --message-error-bg: #f9ebea;
+        --darkened-bg: #f8f9fa;
+        --selected-bg: #e8f0fe;
+        --selected-row: #d1e3fa;
+        --button-fg: #fff;
+        --button-bg: var(--primary);
+        --button-hover-bg: #34495e;
+        --default-button-bg: var(--secondary);
+        --default-button-hover-bg: #3e5771;
+        --close-button-bg: #95a5a6;
+        --close-button-hover-bg: #7f8c8d;
+        --delete-button-bg: #e74c3c;
+        --delete-button-hover-bg: #c0392b;
+        --object-tools-fg: var(--button-fg);
+        --object-tools-bg: var(--accent);
+        --object-tools-hover-bg: #2980b9;
+    }
 
+    a:link,
+    a:visited {
+        color: var(--link-fg);
+        text-decoration: none;
+        transition: color 0.15s, background 0.15s;
+    }
 
-a:link, a:visited {
-    color: var(--link-fg);
-    text-decoration: none;
-    transition: color 0.15s, background 0.15s;
-}
+    a:focus,
+    a:hover {
+        color: var(--link-hover-color);
+    }
 
-a:focus, a:hover {
-    color: var(--link-hover-color);
-}
+    a:focus {
+        text-decoration: underline;
+    }
 
-a:focus {
-    text-decoration: underline;
-}
+    a img {
+        border: none;
+    }
 
-a img {
-    border: none;
-}
+    a.section:link,
+    a.section:visited {
+        color: var(--header-link-color);
+        text-decoration: none;
+    }
 
-a.section:link, a.section:visited {
-    color: var(--header-link-color);
-    text-decoration: none;
-}
-
-a.section:focus, a.section:hover {
-    text-decoration: underline;
-}
+    a.section:focus,
+    a.section:hover {
+        text-decoration: underline;
+    }
 </style>
+
 {% endblock %}
