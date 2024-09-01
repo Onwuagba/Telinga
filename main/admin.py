@@ -185,10 +185,11 @@ class CustomerAdmin(admin.ModelAdmin):
         threads = nylas_client.threads.list(nylas_grant)
         data = []
         for thread in threads:
-            data.append({
-                "id": thread.id,
-                "subject": thread.subject
-            })
+            if hasattr(thread[0], 'subject') and hasattr(thread[0], 'id'):
+                data.append({
+                    "id": thread[0].id,
+                    "subject": thread[0].subject
+                })
 
         context = {
             'threads': data,
@@ -274,11 +275,23 @@ class FeedbackAdmin(admin.ModelAdmin):
     readonly_fields = ("sentiment", "created_at")
     list_filter = ("sentiment", "source")
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(customer__message_format__business=request.user)
+
 
 @admin.register(MessageFormat)
 class MessageFormatAdmin(admin.ModelAdmin):
     list_display = ("message", "business", "created_at")
     search_fields = ("message", "business__username")
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(business=request.user)
 
 
 @admin.register(MessageStatus)
@@ -291,6 +304,12 @@ class MessageStatusAdmin(admin.ModelAdmin):
         "customer__first_name",
         "customer__phone_number",
     )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(customer__message_format__business=request.user)
 
 
 @admin.register(NylasWebhook)

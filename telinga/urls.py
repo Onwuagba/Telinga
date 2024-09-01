@@ -16,10 +16,21 @@ Including another URLconf
 """
 
 from django.contrib import admin
+from django.views.generic import RedirectView
 from django.urls import path, include
+
+from main.views import AdminRegistrationView, CustomAdminLoginView
 
 admin.site.site_header = "Telinga Admin Site"
 admin.site.site_title = "Telinga Admin Portal"
 admin.site.index_title = "Dashboard"
 
-urlpatterns = [path("admin/", admin.site.urls), path("api/", include("main.urls"))]
+urlpatterns = [
+    path('admin/register/', AdminRegistrationView.as_view(),
+         name='admin_register'),
+    path('admin/login/', CustomAdminLoginView.as_view(),
+         name='login'),
+    path("admin/", admin.site.urls),
+    path("api/", include("main.urls")),
+    path("", RedirectView.as_view(url='/admin/', permanent=True)),
+]

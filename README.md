@@ -33,7 +33,7 @@ This project is a comprehensive system for handling customer feedback, notificat
 - **Email Threading**: Track and analyze email threads for comprehensive customer interaction history.
 - **Calendar Integration**: Schedule meetings and manage events based on customer interactions.
 - **Multi-language Support**: Detect language and translate responses for global customer base.
-- **Admin Interface**: Manage customers, feedback, and system settings through the Django admin interface.
+- **Admin Interface**: Manage customers, feedback, and system settings through the admin interface.
 - **Asynchronous Processing**: Use Celery for scheduling messages and background tasks.
 
 ## Setup
@@ -304,5 +304,7 @@ The system uses Google's Gemini AI for various natural language processing tasks
 Logs are configured to output to both console and file. You can configure this in the settings file
 
 ## run-collection
+
+Test application online: [telinga.koyeb.com](https://telinga.koyeb.app/)
 
 [<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://app.getpostman.com/run-collection/7261954-9ca33fb4-8228-4520-a351-322910e08f28?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D7261954-9ca33fb4-8228-4520-a351-322910e08f28%26entityType%3Dcollection%26workspaceId%3D21eb856b-3287-46ec-951c-824c21f61034)

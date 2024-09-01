@@ -1,0 +1,27 @@
+{% extends "admin/login.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<form method="post" action="{% url 'login' %}" id="login-form">
+    {% csrf_token %}
+    <div class="form-row" style="padding: 0px;">
+        {{ form.non_field_errors }}
+        {{ form.username.errors }}
+        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+        {{ form.username }}
+    </div>
+    <div class="form-row">
+        {{ form.password.errors }}
+        <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+        {{ form.password }}
+    </div>
+    <div class="submit-row">
+        <input type="submit" value="{% trans 'Log in' %}">
+    </div>
+    <div style="text-align: center; margin-top: 10px;">
+        <small>Don't have an account? <a href="{% url 'admin_register' %}"><b>Register</b></a></small>
+    </div>
+</form>
+{% endblock %}

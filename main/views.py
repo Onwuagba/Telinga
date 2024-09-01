@@ -9,11 +9,16 @@ import re
 import secrets
 
 from django.conf import settings
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import get_user_model, authenticate, login
+from django.contrib.auth.mixins import AccessMixin
 from django.db import IntegrityError
+from django.views.generic import FormView
+from django.contrib.auth.views import LoginView
 from django.http import HttpResponse
 from django.template.defaultfilters import escape
+from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from dotenv import load_dotenv
@@ -37,6 +42,7 @@ from main.serializers import (
 )
 from main.tasks import schedule_message
 from main.utils import message_manager, nylas_client
+from main.forms import AdminRegistrationForm
 
 load_dotenv()
 
@@ -53,6 +59,31 @@ class Home(APIView):
         status_msg = "success"
 
         return CustomAPIResponse(message, status_code, status_msg).send()
+
+
+class CustomAdminLoginView(LoginView):
+    template_name = 'admin/custom_login.html'
+
+    def get_success_url(self):
+        return self.get_redirect_url() or '/admin/'
+
+
+class AdminRegistrationView(AccessMixin, FormView):
+    template_name = 'admin/register.html'
+    form_class = AdminRegistrationForm
+    success_url = reverse_lazy('admin:index')
+
+    def dispatch(self, request, *args, **kwargs):
+        # Allow unauthenticated users to access the registration view
+        if request.user.is_authenticated:
+            # Redirects authenticated users if needed
+            return self.handle_no_permission()
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        user = form.save()
+        login(self.request, user)
+        return super().form_valid(form)
 
 
 class UserRegistrationView(CreateAPIView):
