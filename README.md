@@ -1,6 +1,7 @@
 # Telinga: Customer Feedback and Notification System
 An interactive customer support API built with Django, Twilio (for SMS), Nylas (for Email & calendar events), and Google's Gemini AI for sentiment analysis and automated responses.
 
+
 ## Table of Contents
 
 - [Overview](#overview)
