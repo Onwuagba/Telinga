@@ -1,0 +1,18 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Email Threads</h1>
+    <ul>
+        {% for thread in threads %}
+        <li>
+            <strong>ID:</strong> {{ thread.id }} <br>
+            <strong>Subject:</strong> {{ thread.subject }}
+        </li>
+        {% empty %}
+        <li>No email threads found.</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

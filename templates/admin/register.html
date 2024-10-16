@@ -1,0 +1,32 @@
+{% extends "admin/login.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<!-- <h1>{% trans 'Register' %}</h1> -->
+<form method="post" action="{% url 'admin_register' %}" id="register-form">
+    {% csrf_token %}
+    <div class="form-row" style="padding: 0px;">
+        {{ form.non_field_errors }}
+        {{ form.username.errors }}
+        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+        {{ form.username }}
+    </div>
+    <div class="form-row" style="padding: 0px;">
+        {{ form.password.errors }}
+        <label for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>
+        {{ form.password1 }}
+    </div>
+    <div class="form-row" style="padding: 0px;">
+        {{ form.password2.errors }}
+        <label for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>
+        {{ form.password2 }}
+    </div>
+    <div class="submit-row">
+        <input type="submit" value="{% trans 'Register' %}">
+    </div>
+</form>
+<div style="text-align: center; margin-top: 20px;">
+    <small><a href="{% url 'login' %}"><u>{% trans '&#8592; Back to login' %}</u></a></small>
+</div>
+{% endblock %}

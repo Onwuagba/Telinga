@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrastyle %}{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static " admin/css/forms.css" %}">
+{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+{{ form.media }}
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Schedule Meeting</h1>
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            {% for field in form %}
+            <div class="form-row">
+                {{ field.errors }}
+                {% if opts %}
+                {{ field.label_tag }} {{ field }}
+                {% endif %}
+                {% if field.field.help_text %}
+                <p class="help">{{ field.field.help_text|safe }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </fieldset>
+        <div class="submit-row">
+            <input type="submit" value="Schedule Meeting" class="default" name="_save">
+        </div>
+    </form>
+</div>
+{% endblock %}
